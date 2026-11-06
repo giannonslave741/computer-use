@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js",
-    "check": "node --check index.js && node --check brain.js && node --check executor.js && node --check capture.js && node --check config.js && node --check keys.js && node --check backends.js && node --check interception.js && node --check windows.js && node --check stagnation.js && node --check grid.js && node --check analyze.js && node --check test-input.js && node --check test-windows.js && node --check test_parser.js && node --check wander.mjs && node --check tloop.mjs && node --check launch-tloop.mjs",
+    "check": "node --check index.js && node --check brain.js && node --check executor.js && node --check capture.js && node --check config.js && node --check keys.js && node --check backends.js && node --check interception.js && node --check windows.js && node --check stagnation.js && node --check grid.js && node --check analyze.js && node --check test-input.js && node --check test-windows.js && node --check test_parser.js && node --check wander.mjs && node --check tloop.mjs && node --check launch-tloop.mjs && node --check providers/openai.js && node --check mcp/server.mjs && node --check mcp/self-check.mjs",
     "setup-driver": "powershell -NoProfile -ExecutionPolicy Bypass -File \"scripts/setup-interception.ps1\" -Install",
     "remove-driver": "powershell -NoProfile -ExecutionPolicy Bypass -File \"scripts/setup-interception.ps1\" -Uninstall",
     "test-input": "node test-input.js",
@@ -23,9 +23,11 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@nut-tree-fork/nut-js": "^4.2.6",
     "execa": "^10.0.1",
     "koffi": "^3.3.2",
-    "screenshot-desktop": "^1.15.6"
+    "screenshot-desktop": "^1.15.6",
+    "zod": "^4.6.7"
   }
 }

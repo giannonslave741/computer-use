@@ -475,3 +475,12 @@ export async function askModel({ goal, step, img, history, sessionId = null, tit
   const action = findActions(text) || [{ action: 'wait', ms: 2000, _parseFailed: true }];
   return { actions: action, raw: text, durationMs, sessionId: sid || sessionId };
 }
+
+export async function ask(opts) {
+  if (config.provider === 'openai') {
+    const { askOpenai } = await import('./providers/openai.js');
+    return askOpenai(opts);
+  }
+  if (config.provider === 'opencode') return askModel(opts);
+  throw new Error(`provider không hỗ trợ: ${config.provider}`);
+}

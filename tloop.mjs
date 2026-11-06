@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { takeScreenShot } from './capture.js';
 import {
-  askModel,
+  ask,
   loadSessionState,
   saveSessionState,
   deleteSession,
@@ -25,7 +25,7 @@ import { resolveBackend } from './backends.js';
 import { resolveKeyName } from './keys.js';
 import * as wm from './windows.js';
 import { screen, mouse, sleep } from '@nut-tree-fork/nut-js';
-import { config } from './config.js';
+import { config, takeProviderFlag } from './config.js';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const STOP_FILE = path.join(dir, 'stop-tloop.flag');
@@ -52,6 +52,11 @@ function parseArgs(argv) {
   const opts = { interval: 120000, spamMs: 500 };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
+    const providerFlag = takeProviderFlag(argv, i);
+    if (providerFlag) {
+      i += providerFlag - 1;
+      continue;
+    }
     if (a === '--interval') opts.interval = Number(argv[++i]) || 120000;
     else if (a === '--spam-ms') opts.spamMs = Number(argv[++i]) || 500;
     else if (a === '--model') config.model = argv[++i];
@@ -270,9 +275,14 @@ async function main() {
     log(`backend: ${backend?.name || 'ok'}`);
   }
 
-  const session = loadSessionState();
-  log(`session: ${session.sessionId || '(moi)'} | luot: ${session.calls}`);
-  if (config.continueSession) await cleanupCuaSessions(session.sessionId);
+  let session = { sessionId: null, calls: 0 };
+  if (config.provider === 'opencode') {
+    session = loadSessionState();
+    log(`session: ${session.sessionId || '(moi)'} | luot: ${session.calls}`);
+    if (config.continueSession) await cleanupCuaSessions(session.sessionId);
+  } else {
+    log(`provider: openai | ${config.openai.baseUrl} | model: ${config.model}`);
+  }
 
   let stop = false;
   const onSignal = (sig) => {
@@ -341,7 +351,7 @@ async function main() {
       // vision
       let inGame = false;
       try {
-        const { actions, raw, durationMs, sessionId } = await askModel({
+        const { actions, raw, durationMs, sessionId } = await ask({
           goal: GOAL + state.relaunchHint,
           step: state.step,
           img,
@@ -355,7 +365,7 @@ async function main() {
           sessionId: session.sessionId,
           title: session.sessionId ? null : 'TLoop'
         });
-        if (sessionId) {
+        if (config.provider === 'opencode' && sessionId) {
           if (session.sessionId !== sessionId) {
             session.sessionId = sessionId;
             log(`session: ${sessionId}`);

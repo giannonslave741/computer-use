@@ -63,8 +63,23 @@ node launch-run.mjs goal.txt 16 4000
 | `--no-continue` | Không nối session cũ của CLI vision. |
 | `--no-failsafe` | Tắt dừng khẩn cấp ở góc màn hình. |
 | `--observe` | Bỏ qua `done` và tiếp tục quan sát. |
+| `--provider opencode\|openai` | `opencode` gọi CLI trong `visionCmd`. `openai` gọi `POST /chat/completions`. |
+| `--base-url URL` | Gốc API khi `--provider openai`. Mặc định `https://api.openai.com/v1`. |
+| `--api-key KEY` | Bearer token. Bỏ trống nếu server local không cần key. Không được in ra log. |
+
+Cùng ba cờ này có trên `tloop`. Biến môi trường tương ứng: `CUA_PROVIDER`, `CUA_BASE_URL`, `CUA_API_KEY`.
 
 `Ctrl+C` cũng dừng vòng lặp.
+
+### Gọi endpoint vision
+
+Một bước vẫn là một request. Ảnh JPG vừa chụp đi kèm prompt, không gửi ảnh các bước trước, không giữ session. Body chỉ có `model`, `messages`, `stream: false` và `max_tokens` để hầu hết server nhận. Nếu server từ chối `max_tokens`, request được gửi lại một lần với `max_completion_tokens`.
+
+```powershell
+node index.js --provider openai --base-url http://127.0.0.1:11434/v1 --model llava --once "Mo Chrome"
+```
+
+`base-url` có thể là `https://api.openai.com/v1` hoặc URL đã kết thúc bằng `/chat/completions`. Cách này dùng được với OpenAI, OpenRouter, Groq, Together, vLLM, llama.cpp, Ollama, LM Studio và endpoint OpenAI của Gemini.
 
 ## Hành động
 
@@ -130,6 +145,20 @@ npm run tloop:stop
 Log: `tloop.log`, `tloop.err.log`.
 
 Các file `*-goal.txt` là mục tiêu mẫu gắn với máy đang chạy (đường dẫn cục bộ, game cụ thể). Đổi nội dung cho đúng máy của bạn trước khi chạy.
+
+## MCP cho agent khác
+
+File [.cursor/mcp.json](.cursor/mcp.json) đăng ký server `computer-use`. Agent trong Cursor gọi từng thao tác, và mỗi thao tác đi qua cùng executor với vòng lặp chính: Interception nếu có, và cấm click khi cửa sổ vừa đổi hoặc sai cửa sổ.
+
+Tool: `screenshot`, `window_list`, `window_activate`, `click`, `move`, `type`, `press`, `hold`, `hotkey`, `scroll`, `drag`.
+
+Sau `window_activate` phải gọi `screenshot` rồi mới `click` hoặc gõ. Tọa độ là pixel trên ảnh vừa chụp.
+
+Chạy tay server: `node mcp/server.mjs` (nó chờ kết nối trên stdin). Kiểm tra không click thật:
+
+```powershell
+node mcp/self-check.mjs
+```
 
 ## Lệnh nhỏ trong `cu/`
 

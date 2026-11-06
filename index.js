@@ -1,7 +1,7 @@
 import { takeScreenShot } from './capture.js';
 import { prepareShot } from './grid.js';
 import { diffFrames, formatDiff, checkPoints, checkCursor } from './analyze.js';
-import { askModel, loadSessionState, saveSessionState, deleteSession, cleanupCuaSessions } from './brain.js';
+import { ask, loadSessionState, saveSessionState, deleteSession, cleanupCuaSessions } from './brain.js';
 import {
   executeActions,
   setCoordinateMap,
@@ -12,12 +12,17 @@ import { resolveBackend } from './backends.js';
 import { createStagnationDetector } from './stagnation.js';
 import * as wm from './windows.js';
 import { screen, mouse, sleep } from '@nut-tree-fork/nut-js';
-import { config } from './config.js';
+import { config, takeProviderFlag } from './config.js';
 
 function parseArgs(argv) {
   const opts = { goal: [], steps: null, interval: null, once: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
+    const providerFlag = takeProviderFlag(argv, i);
+    if (providerFlag) {
+      i += providerFlag - 1;
+      continue;
+    }
     if (a === '--steps') opts.steps = Number(argv[++i]);
     else if (a === '--interval') opts.interval = Number(argv[++i]);
     else if (a === '--model') config.model = argv[++i];
@@ -120,8 +125,11 @@ async function runLoop(opts) {
   console.log('=== Bắt đầu Computer Use Agent ===');
   console.log(`Mục tiêu : ${opts.goal || '(chưa đặt)'}
 Bước tối đa: ${opts.steps || 'không giới hạn'} | Interval: ${opts.interval ?? config.intervalMs}ms
-Dry-run: ${config.dryRun} | Tiếp tục session: ${config.continueSession} | Failsafe góc màn hình: ${config.failSafeCorner}
+Dry-run: ${config.dryRun} | Provider: ${config.provider} | Failsafe góc màn hình: ${config.failSafeCorner}
 `);
+  if (config.provider === 'openai' && String(config.model).startsWith('opencode/')) {
+    console.log('Model hiện là id của CLI. Với --provider openai hãy đặt --model theo endpoint.\n');
+  }
   if (config.dryRun) console.log('*** CHẾ ĐỘ DRY-RUN: chỉ in hành động, không click/gõ ***\n');
 
   resetWindowGuard();
@@ -132,11 +140,16 @@ Dry-run: ${config.dryRun} | Tiếp tục session: ${config.continueSession} | Fa
     console.log('');
   }
 
-  state.session = loadSessionState();
-  console.log(
-    `Session CUA dùng chung: ${state.session.sessionId || '(chưa có, sẽ tạo)'} | lượt gọi: ${state.session.calls}\n`
-  );
-  if (config.continueSession) await cleanupCuaSessions(state.session.sessionId);
+  state.session = { sessionId: null, calls: 0 };
+  if (config.provider === 'opencode') {
+    state.session = loadSessionState();
+    console.log(
+      `Session dùng chung: ${state.session.sessionId || '(chưa có, sẽ tạo)'} | lượt gọi: ${state.session.calls}\n`
+    );
+    if (config.continueSession) await cleanupCuaSessions(state.session.sessionId);
+  } else {
+    console.log(`Endpoint: ${config.openai.baseUrl} | model: ${config.model}\n`);
+  }
 
   let stop = false;
   const onSignal = (sig) => {
@@ -206,7 +219,7 @@ Dry-run: ${config.dryRun} | Tiếp tục session: ${config.continueSession} | Fa
       }
 
       console.log('[2] Gửi ảnh cho agent phân tích...');
-      const { actions, raw, durationMs, sessionId } = await askModel({
+      const { actions, raw, durationMs, sessionId } = await ask({
         goal: opts.goal,
         step: state.step,
         img,
@@ -221,7 +234,7 @@ Dry-run: ${config.dryRun} | Tiếp tục session: ${config.continueSession} | Fa
         sessionId: state.session.sessionId,
         title: state.session.sessionId ? null : 'CUA Agent'
       });
-      if (sessionId) {
+      if (config.provider === 'opencode' && sessionId) {
         if (state.session.sessionId !== sessionId) {
           state.session.sessionId = sessionId;
           console.log(`    Session dùng chung: ${sessionId}`);

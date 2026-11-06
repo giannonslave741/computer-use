@@ -12,6 +12,12 @@ export const config = {
   model: 'opencode/space-bunny-free',
   agent: null,
   visionCmd: 'opencode',
+  // 'opencode' gọi CLI local. 'openai' gọi POST /chat/completions (mọi endpoint cùng chuẩn).
+  provider: process.env.CUA_PROVIDER || 'opencode',
+  openai: {
+    baseUrl: process.env.CUA_BASE_URL || 'https://api.openai.com/v1',
+    apiKey: process.env.CUA_API_KEY || ''
+  },
   requestTimeoutMs: 120000,
   dryRun: false,
   failSafeCorner: true,
@@ -51,3 +57,25 @@ export const config = {
     holdMs: 60
   }
 };
+
+/** Trả về số đối số đã nuốt (0 nếu không phải cờ provider). Không in API key. */
+export function takeProviderFlag(argv, i) {
+  const a = argv[i];
+  if (a === '--provider') {
+    const v = argv[i + 1];
+    if (v !== 'opencode' && v !== 'openai') {
+      throw new Error(`provider không hỗ trợ: ${v}. Dùng opencode hoặc openai.`);
+    }
+    config.provider = v;
+    return 2;
+  }
+  if (a === '--base-url') {
+    config.openai.baseUrl = argv[i + 1];
+    return 2;
+  }
+  if (a === '--api-key') {
+    config.openai.apiKey = argv[i + 1];
+    return 2;
+  }
+  return 0;
+}
