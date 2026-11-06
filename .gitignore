@@ -1,0 +1,12 @@
+node_modules/
+temp/
+vendor/
+
+*.log
+stop-*.flag
+.cua-session.json
+
+.env
+.env.*
+*.pem
+*.key

@@ -1,0 +1,40 @@
+MUC TIEU: Moi 2 phut chup man hinh 1 lan de kiem tra Roblox con dang TRONG GAME khong.
+Neu DANG TRONG GAME -> tra ve done (he thong se tu spam click giua cua so Roblox + bam T lien tuc).
+Con lai -> khong spam, xu ly theo trang thai duoi day. KHONG tu dung chuong trinh, khong dua ra ket luan sau qua 1 anh.
+
+TRANG THAI 1 - DANG TRONG GAME (thay the gioi/nhan vat/HP/Level/chat cua game, khong phai menu/homescreen Roblox):
+  -> tra ve DUY NHAT: [{"action":"done","reason":"in game"}]
+  (done = tin hieu "con trong game" cho he thong, KHONG dung chuong trinh.)
+
+TRANG THAI 2 - DANG LOADING (Roblox dang load, man hinh load chua ro the gioi):
+  -> [{"action":"wait","ms":3000}]
+
+TRANG THAI 3 - DANG O MENU/HOME CUA ROBLOX (khong phai kick, khong phai dialog loi):
+  UU TIEN dung muc CONTINUE de vao lai game:
+  1. Tim muc "Continue" / "Bay gio" / game vua choi tren menu Roblox (thuong o tren cung, anh bia + ten game).
+  2. Xac dinh game vua choi = muc Continue dau tien (ganh nhat); neu anh bia/ten game ro -> chon no.
+  3. Click nut Play/Continue cua no: [{"action":"click","x":...,"y":...}] -> [{"action":"wait","ms":3000}]
+  4. Khong thay muc Continue, khong ro vi tri, hoac click roi van o menu -> chay bash:
+     powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Users\dongt\opencode-computer-use\tloop-relaunch.ps1"
+     roi tra: [{"action":"wait","ms":3000}]
+  NEU DUONG DAN HINH co ghi "KHONG chay tloop-relaunch.ps1 nua" -> CHI dung cach 1-3 (Continue), KHONG chay ps1.
+
+TRANG THAI 4 - BI KICK / DIALOG LOI / ROBLOX LOI (co thong bao loi, thua khoi server, Roblox Error):
+  - Chay bash TRUOC: powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Users\dongt\opencode-computer-use\tloop-relaunch.ps1"
+    (no doc placeId game vua choi tu log, dong Roblox cu, mo lai qua protocol Froststrap.)
+  - Sau do tra ve: [{"action":"wait","ms":3000}]
+
+TRANG THAI 5 - KHONG THAY CUA SO ROBLOX (crash/da dong):
+  - Chay bash: powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Users\dongt\opencode-computer-use\tloop-relaunch.ps1"
+  - Tra ve: [{"action":"wait","ms":3000}]
+
+QUY TAC:
+- TRUOC khi ket luan bat ky trang thai nao: neu man hinh bi cua so khac che/khong nhin ro Roblox,
+  chay truoc [{"action":"window_activate","target":"Roblox"}] roi tra [{"action":"wait","ms":1500}].
+  Chi ket linan khi da nhin ro man hinh Roblox.
+- Click/cham chi khi Roblox dang foreground va nhin ro anh; tao tu anh chup (khong doan).
+- CHI dung "done" cho trang thai 1. Dung cho trang thai khac se huy spam.
+- Chi chay tloop-relaunch.ps1 khi duoc trang thai 4/5 yeu cau (hoac trang thai 3 loi 4 buoc);
+  khi da co loi "KHONG chay nua" tren man hinh -> khong chay ps1.
+- Tra ve DUY NHAT mot JSON array, toi da 5 hanh dong, khong text/markdown khac.
+- Khong ro rang: [{"action":"wait","ms":2000}].

@@ -1,0 +1,26 @@
+MUC TIEU: chuyen sang cua so Roblox, vao1 game bat ky, roi di chuyen nhan vat trong game.
+
+BUOC1 - DUACUA SO ROBLOX LEN TRUONG (thuc hien TRUOC moi hanh dong khac):
+- Neu anh chup hien tai khong thay ro man hinh Roblox (bi cua so OpenCode/terminal che), chay bash truoc:
+  powershell -NoProfile -Command (New-Object -ComObject WScript.Shell).AppActivate('Roblox')
+  roi tra ve [{"action":"wait","ms":1500}]. Chu ky sau se chup lai de kiem tra.
+- Neu van khong ro: click icon Roblox tren taskbar de day man hinh.
+- Chi khi man hinh Robloc hien thi ro day du moi dua ra hanh dong khac.
+
+BUOC2 - VAO1 GAME (neu dang o trang home/menu/lobby cua Roblox):
+- Click vao1 o game bat ky dang hien thi tren man hinh, sau do click nut Play/Join.
+- Neu co dialog xac nhan/thong bao thi click nut xac nhan/OK/dong.
+- Doi load bang hanh dong wait 1500ms, lap lai den khi thay the gioi game (thanh HP/Level, hoac nhan vat).
+
+BUOC3 - DI CHUYEN NHAN VAT:
+- Khi da thay nhan vat hoac the gioi game, gop chuoi:
+  [{"action":"hold","key":"W","ms":1500},{"action":"wait","ms":300},{"action":"hold","key":"A","ms":700}]
+- Sau do chup lai de kiem tra nhan vat co di chuyen khong.
+- Neu nhan vat khong chuyen vi bi menu/dialog che: click vao giua man hinh game roi thuc hien lai chuoi hold.
+- Khi nhan vat da di chuyen duoc (vi tri trong game thay doi): tra [{"action":"done","reason":"da di chuyen nhan vat"}].
+
+QUY TAC:
+- KHONG BAO gio click o toa do x <= 10 va y <= 10 (goc tren trai man hinh) - do la vung dung khẩn cap.
+- Tra ve DUY NHAT mot mang JSON bat dau bang [ va ket thuc bang ], khong text khac, khong markdown.
+- Khong ro rang: [{"action":"wait","ms":1500}].
+- Gop toi da 5 thao tac moi lan.

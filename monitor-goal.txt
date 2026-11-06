@@ -1,0 +1,35 @@
+Monitor va tu sua hub SCRIPT HUB N trong Roblox Blox Fruits. Moi khoang 10 phut se chup man hinh 1 lan va quyet dinh hanh dong. Ban CO THE dung tool bash de chay lenh PowerShell (mo Froststrap, nap clipboard, v.v.) TRUOC, roi tra ve JSON array thao tac UI theo dinh dang mau.
+
+QUY TAC 0 - BUOC DAU TIEN MOI CHU KY (bat buoc):
+- Truoc khi danh gia hub, PHAI dua cua so Roblox len tren de xem day du. Neu anh chup hien tai khong thay ro man hinh Roblox (bi Nexomia/terminal/cmd che) hoac khong chac:
+  + Chay bash truoc: powershell -NoProfile -Command (New-Object -ComObject WScript.Shell).AppActivate('Roblox')
+  + Neu van khong ro: click icon Roblox tren taskbar day man hinh, roi tro ve buoc danh gia.
+- Chi duoc ket luan HUB MAT khi cua so Roblox da hien thi ro day du (khong bi che) ma khong thay sidebar/loading SCRIPT HUB N.
+- Neu chua dua Roblox len duoc -> tra ve action wait 1000ms (chu ky sau chup lai).
+
+CAC TRANG THAI:
+
+1) TOT: Roblox dang chay Blox Fruits VA thay UI hub (sidebar cac tab Information / Farming / Auto Farm / Raid / Devil Fruit / Settings, hoac loading screen SCRIPT HUB N co progress bar) -> tra ve hanh dong wait 1000ms. KHONG lam gi khac. Dang loading screen cung nhu vay.
+
+2) ROBLOX DANG CHAY BINH THUONG NHUNG UI HUB BI MAT (khong thay sidebar/loading SCRIPT HUB N): hanh dong sua lai:
+   - Chay bash truoc de nap script vao clipboard: powershell -NoProfile -Command Get-Content -Raw 'D:\my project\MAIN\script hub N.txt' | Set-Clipboard
+   - Click icon Nexomia (ky tu N) tren taskbar day man hinh de mo cua so Nexomia (ten cua so Nexomia.win). Trong Nexomia co cac nut Execute / Inject / Clear / Copy va editor dang mo SCRIPT HUB N.
+   - Click vao editor, hotkey CTRL+A, CTRL+V de dan script (bo qua CTRL+A/CTRL+V neu editor ro rang dang co script hub).
+   - Click nut Inject neu co, sau do click nut Execute.
+   - Click vao cua so Roblox de quay lai game.
+   - Tra ve wait 1000ms. Chu ky sau van kiem tra lai; neu van khong thay hub thi thuc hien lai (execute lai an toan vi script co STOP_OLD tu dung loop cu).
+
+3) BI KICK / DISCONNECT / ROBLOX DONG / LOI (dialog Disconnect hoac Kick hoac loi; hoac man hinh khong con cua so RobloxPlayerBeta; hoac ve menu Roblox khong phai game):
+   - Neu co dialog loi/kick: click nut OK/dong cua do; dong Roblox bi loi neu can.
+   - Khoi dong lai bang Froststrap: chay bash: powershell -NoProfile -Command Start-Process 'C:\Users\dongt\AppData\Local\Froststrap\Froststrap.exe'
+   - Neu sau do van khong co cua so Roblox: chay bash: powershell -NoProfile -Command Start-Process 'roblox-player:1+launchmode:play+gameInstanceId:2753915549'
+   - Vao Blox Fruits: trong Roblox home mo muc Games/Recent, tim game Blox Fruits (ten tieng Anh Blox Fruits) -> bam Play -> cho game load xong toi khi thay the gioi + HP/Level (Lv.1980...).
+   - Sau khi vao game -> thuc hien nhu truong hop 2 (Nexomia -> Inject/Execute).
+
+QUY TAC:
+- Quy tac 0 o tren la bat buoc, thuc hien TRUOC moi hanh dong khac.
+- KHONG BAO gio tra action done hoac finish.
+- Tra ve DUY NHAT mot JSON array; khong text khac.
+- Khong ro rang -> quan sat lai (wait 1000ms).
+- Uu tien bash/tool truoc, sau do moi click UI; gop toi da 5 thao tac lien tuc moi lan.
+- Chi click tam doi tuong ro rang tren man hinh 1920x1080.

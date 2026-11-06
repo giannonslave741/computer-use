@@ -1,0 +1,31 @@
+{
+  "name": "opencode-computer-use",
+  "version": "1.0.0",
+  "description": "Computer Use Agent: Node.js + OpenCode CLI",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js",
+    "check": "node --check index.js && node --check brain.js && node --check executor.js && node --check capture.js && node --check config.js && node --check keys.js && node --check backends.js && node --check interception.js && node --check windows.js && node --check stagnation.js && node --check grid.js && node --check analyze.js && node --check test-input.js && node --check test-windows.js && node --check test_parser.js && node --check wander.mjs && node --check tloop.mjs && node --check launch-tloop.mjs",
+    "setup-driver": "powershell -NoProfile -ExecutionPolicy Bypass -File \"scripts/setup-interception.ps1\" -Install",
+    "remove-driver": "powershell -NoProfile -ExecutionPolicy Bypass -File \"scripts/setup-interception.ps1\" -Uninstall",
+    "test-input": "node test-input.js",
+    "test-windows": "node test-windows.js",
+    "test-all": "node test_parser.js && node test-windows.js && node test-input.js",
+    "wander": "node wander.mjs",
+    "wander:2min": "node wander.mjs --seconds 120",
+    "wander:stop": "node -e \"require('fs').writeFileSync('stop-wander.flag','1');console.log('da tao stop-wander.flag')\"",
+    "tloop": "node launch-tloop.mjs",
+    "tloop:stop": "node -e \"require('fs').writeFileSync('stop-tloop.flag','1');console.log('da tao stop-tloop.flag')\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@nut-tree-fork/nut-js": "^4.2.6",
+    "execa": "^10.0.1",
+    "koffi": "^3.3.2",
+    "screenshot-desktop": "^1.15.6"
+  }
+}
