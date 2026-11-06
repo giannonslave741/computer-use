@@ -1,7 +1,7 @@
 {
-  "name": "opencode-computer-use",
+  "name": "computer-use",
   "version": "1.0.0",
-  "description": "Computer Use Agent: Node.js + OpenCode CLI",
+  "description": "Computer use on Windows: screenshot, any vision agent, JSON actions",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",

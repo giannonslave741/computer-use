@@ -11,7 +11,7 @@ export const config = {
   //   beam-free           -> KHÔNG thấy ảnh; openrouter/* -> không gọi được
   model: 'opencode/space-bunny-free',
   agent: null,
-  opencodeCmd: 'opencode',
+  visionCmd: 'opencode',
   requestTimeoutMs: 120000,
   dryRun: false,
   failSafeCorner: true,

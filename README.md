@@ -1,6 +1,8 @@
-# opencode-computer-use
+# computer-use
 
-Agent điều khiển máy Windows: chụp màn hình, gửi ảnh cho model qua OpenCode CLI, nhận một mảng JSON hành động, rồi click, gõ phím hoặc chuyển cửa sổ.
+Agent điều khiển máy Windows cho mọi model nhìn được ảnh. Vòng lặp chụp màn hình, gửi ảnh, nhận một mảng JSON hành động, rồi click, gõ phím hoặc chuyển cửa sổ.
+
+Hợp đồng với agent là mảng JSON ở dưới. Agent nào trả đúng mảng đó thì điều khiển được cùng một executor. Lệnh gọi model mặc định nằm trong `config.js` (`visionCmd`, `model`) và đổi được mà không đổi phần click hay cửa sổ.
 
 Mỗi bước là một vòng kín.
 
@@ -15,8 +17,7 @@ Di chuột vào góc trên-trái màn hình và giữ khoảng 1 giây để d�
 
 - Windows 10 trở lên
 - [Node.js](https://nodejs.org/) 18 trở lên
-- [OpenCode CLI](https://opencode.ai/) có trên `PATH` (`opencode`)
-- Model vision trong `config.js` (mặc định `opencode/space-bunny-free`)
+- Một agent vision chạy được từ dòng lệnh. Mặc định `config.visionCmd` là `opencode` và `config.model` là `opencode/space-bunny-free`. Đổi hai giá trị này khi dùng agent khác.
 
 ## Cài đặt
 
@@ -55,11 +56,11 @@ node launch-run.mjs goal.txt 16 4000
 | `--steps N` | Dừng sau N bước. Bỏ qua nghĩa là không giới hạn. |
 | `--interval MS` | Nghỉ giữa hai bước. Mặc định `5000`. |
 | `--once` | Chạy đúng một bước. |
-| `--model NAME` | Model OpenCode, dạng `opencode/...`. |
-| `--agent NAME` | Agent OpenCode, nếu cần. |
+| `--model NAME` | Tên model của agent đang dùng. |
+| `--agent NAME` | Hồ sơ agent, nếu CLI đó có cờ này. |
 | `--backend auto\|interception\|nutjs` | Cách gửi phím và chuột. |
 | `--dry-run` | In hành động, không click và không gõ. |
-| `--no-continue` | Không nối session OpenCode cũ. |
+| `--no-continue` | Không nối session cũ của CLI vision. |
 | `--no-failsafe` | Tắt dừng khẩn cấp ở góc màn hình. |
 | `--observe` | Bỏ qua `done` và tiếp tục quan sát. |
 
@@ -98,9 +99,10 @@ node run_actions.mjs actions.json
 
 Sửa [config.js](config.js).
 
-- `model` — model vision. `space-bunny-free` được chọn vì lệch tọa độ khoảng 2px.
+- `visionCmd` — lệnh gọi agent. Mặc định `opencode`.
+- `model` — model vision của agent đó. Giá trị mặc định lệch tọa độ khoảng 2px trên ảnh 1920×1080.
 - `intervalMs` — nghỉ giữa hai bước.
-- `rotateAfterCalls` — xóa session OpenCode sau từng này lượt. Session dài làm mỗi bước chậm dần.
+- `rotateAfterCalls` — xóa session CLI sau từng này lượt. Session dài làm mỗi bước chậm dần.
 - `gridOverlay` — vẽ lưới tọa độ lên ảnh. Đang tắt vì model mặc định nhắm đủ sát.
 - `pixelAnalysis` — so khung hình và kiểm tra chuột có tới đúng điểm đã click.
 - `inputBackend` — `auto`, `interception`, hoặc `nutjs`.
@@ -157,7 +159,7 @@ npm run test-windows
 | File | Việc nó làm |
 | --- | --- |
 | `index.js` | Vòng chụp, hỏi model, thực thi |
-| `brain.js` | Prompt, gọi OpenCode, tách mảng JSON |
+| `brain.js` | Prompt, gọi agent, tách mảng JSON |
 | `executor.js` | Chạy hành động và chặn click khi chưa đúng cửa sổ |
 | `capture.js` | Chụp màn hình |
 | `windows.js` | Liệt kê và kích hoạt cửa sổ |

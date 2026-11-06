@@ -1,7 +1,7 @@
 import { takeScreenShot } from './capture.js';
 import { prepareShot } from './grid.js';
 import { diffFrames, formatDiff, checkPoints, checkCursor } from './analyze.js';
-import { askOpenCode, loadSessionState, saveSessionState, deleteSession, cleanupCuaSessions } from './brain.js';
+import { askModel, loadSessionState, saveSessionState, deleteSession, cleanupCuaSessions } from './brain.js';
 import {
   executeActions,
   setCoordinateMap,
@@ -117,7 +117,7 @@ async function runLoop(opts) {
   let lastBlocked = null;
   let lastBlockedReason = '';
 
-  console.log('=== Bắt đầu Computer Use Agent (Node.js + OpenCode CLI) ===');
+  console.log('=== Bắt đầu Computer Use Agent ===');
   console.log(`Mục tiêu : ${opts.goal || '(chưa đặt)'}
 Bước tối đa: ${opts.steps || 'không giới hạn'} | Interval: ${opts.interval ?? config.intervalMs}ms
 Dry-run: ${config.dryRun} | Tiếp tục session: ${config.continueSession} | Failsafe góc màn hình: ${config.failSafeCorner}
@@ -205,8 +205,8 @@ Dry-run: ${config.dryRun} | Tiếp tục session: ${config.continueSession} | Fa
         for (const line of analysisText.split('\n')) console.log(`      - ${line}`);
       }
 
-      console.log('[2] Gửi ảnh cho OpenCode CLI phân tích...');
-      const { actions, raw, durationMs, sessionId } = await askOpenCode({
+      console.log('[2] Gửi ảnh cho agent phân tích...');
+      const { actions, raw, durationMs, sessionId } = await askModel({
         goal: opts.goal,
         step: state.step,
         img,

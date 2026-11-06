@@ -17,9 +17,9 @@ function findRealExeFromShim(shimPath) {
   return null;
 }
 
-function resolveOpenCodeCmd() {
+function resolveVisionCmd() {
   if (cachedCmd) return cachedCmd;
-  const explicit = config.opencodeCmd;
+  const explicit = config.visionCmd;
   if (explicit && explicit !== 'opencode') {
     cachedCmd = explicit;
     return cachedCmd;
@@ -72,7 +72,7 @@ export function saveSessionState(state) {
 }
 
 async function cli(args) {
-  return execa(resolveOpenCodeCmd(), args, {
+  return execa(resolveVisionCmd(), args, {
     reject: false,
     timeout: 60000,
     windowsHide: true,
@@ -426,8 +426,8 @@ export function findActions(text) {
   return null;
 }
 
-export async function askOpenCode({ goal, step, img, history, sessionId = null, title = null }) {
-  const cmd = resolveOpenCodeCmd();
+export async function askModel({ goal, step, img, history, sessionId = null, title = null }) {
+  const cmd = resolveVisionCmd();
   const prompt = buildPrompt({ goal, step, img, history });
 
   const makeArgs = (sid) => {
@@ -469,7 +469,7 @@ export async function askOpenCode({ goal, step, img, history, sessionId = null, 
 
   if (result.exitCode !== 0 && !text) {
     const err = (result.stderr || result.stdout || '').trim().slice(-500);
-    throw new Error(`OpenCode CLI lỗi (exit ${result.exitCode}): ${err || 'không có output'}`);
+    throw new Error(`Lệnh vision lỗi (exit ${result.exitCode}): ${err || 'không có output'}`);
   }
 
   const action = findActions(text) || [{ action: 'wait', ms: 2000, _parseFailed: true }];

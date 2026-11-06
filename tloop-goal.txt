@@ -15,17 +15,17 @@ TRANG THAI 3 - DANG O MENU/HOME CUA ROBLOX (khong phai kick, khong phai dialog l
   2. Xac dinh game vua choi = muc Continue dau tien (ganh nhat); neu anh bia/ten game ro -> chon no.
   3. Click nut Play/Continue cua no: [{"action":"click","x":...,"y":...}] -> [{"action":"wait","ms":3000}]
   4. Khong thay muc Continue, khong ro vi tri, hoac click roi van o menu -> chay bash:
-     powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Users\dongt\opencode-computer-use\tloop-relaunch.ps1"
+     powershell -NoProfile -ExecutionPolicy Bypass -File "D:\computer use\tloop-relaunch.ps1"
      roi tra: [{"action":"wait","ms":3000}]
   NEU DUONG DAN HINH co ghi "KHONG chay tloop-relaunch.ps1 nua" -> CHI dung cach 1-3 (Continue), KHONG chay ps1.
 
 TRANG THAI 4 - BI KICK / DIALOG LOI / ROBLOX LOI (co thong bao loi, thua khoi server, Roblox Error):
-  - Chay bash TRUOC: powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Users\dongt\opencode-computer-use\tloop-relaunch.ps1"
+  - Chay bash TRUOC: powershell -NoProfile -ExecutionPolicy Bypass -File "D:\computer use\tloop-relaunch.ps1"
     (no doc placeId game vua choi tu log, dong Roblox cu, mo lai qua protocol Froststrap.)
   - Sau do tra ve: [{"action":"wait","ms":3000}]
 
 TRANG THAI 5 - KHONG THAY CUA SO ROBLOX (crash/da dong):
-  - Chay bash: powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Users\dongt\opencode-computer-use\tloop-relaunch.ps1"
+  - Chay bash: powershell -NoProfile -ExecutionPolicy Bypass -File "D:\computer use\tloop-relaunch.ps1"
   - Tra ve: [{"action":"wait","ms":3000}]
 
 QUY TAC:

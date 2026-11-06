@@ -1,7 +1,7 @@
 import koffi from 'koffi';
 
 // ---------------------------------------------------------------------------
-// Window Management Layer cho opencode-computer-use
+// Window Management Layer cho computer-use
 // Goi truc tiep Windows User32 / Kernel32 / Dwmapi qua koffi (khong qua PowerShell)
 // ---------------------------------------------------------------------------
 

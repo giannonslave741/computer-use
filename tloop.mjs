@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { takeScreenShot } from './capture.js';
 import {
-  askOpenCode,
+  askModel,
   loadSessionState,
   saveSessionState,
   deleteSession,
@@ -341,7 +341,7 @@ async function main() {
       // vision
       let inGame = false;
       try {
-        const { actions, raw, durationMs, sessionId } = await askOpenCode({
+        const { actions, raw, durationMs, sessionId } = await askModel({
           goal: GOAL + state.relaunchHint,
           step: state.step,
           img,

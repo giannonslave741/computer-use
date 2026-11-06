@@ -1,7 +1,7 @@
 MUC TIEU: chuyen sang cua so Roblox, vao1 game bat ky, roi di chuyen nhan vat trong game.
 
 BUOC1 - DUACUA SO ROBLOX LEN TRUONG (thuc hien TRUOC moi hanh dong khac):
-- Neu anh chup hien tai khong thay ro man hinh Roblox (bi cua so OpenCode/terminal che), chay bash truoc:
+- Neu anh chup hien tai khong thay ro man hinh Roblox (bi cua so terminal che), chay bash truoc:
   powershell -NoProfile -Command (New-Object -ComObject WScript.Shell).AppActivate('Roblox')
   roi tra ve [{"action":"wait","ms":1500}]. Chu ky sau se chup lai de kiem tra.
 - Neu van khong ro: click icon Roblox tren taskbar de day man hinh.

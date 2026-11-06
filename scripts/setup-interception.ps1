@@ -1,6 +1,6 @@
 ﻿<#
 .SYNOPSIS
-  Cài/gỡ driver Interception cho opencode-computer-use.
+  Cài/gỡ driver Interception cho computer-use.
 
 .DESCRIPTION
   - Tải Interception.zip từ GitHub release nếu chưa có vendor/interception.dll
