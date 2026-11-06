@@ -57,7 +57,7 @@ async function waitForFile(filePath, tries = 10, delayMs = 200) {
       const stat = await fs.stat(filePath);
       if (stat.size > 0) return stat.size;
     } catch {
-      /* file chưa tồn tại */
+      /* file does not exist yet */
     }
     await new Promise((res) => setTimeout(res, delayMs));
   }
@@ -65,9 +65,9 @@ async function waitForFile(filePath, tries = 10, delayMs = 200) {
 }
 
 /**
- * Chụp màn hình.
- * @param {{format?: 'png'|'jpg'}} [opts] 'png' -> giữ pixel thật để phân tích;
- *   mặc định lấy đuôi từ config.screenshotPath (tloop/run_actions vẫn dùng jpg).
+ * Capture the screen.
+ * @param {{format?: 'png'|'jpg'}} [opts] 'png' keeps real pixels for analysis;
+ *   otherwise the extension of config.screenshotPath is used (tloop/run_actions still use jpg).
  */
 export async function takeScreenShot(opts = {}) {
   const basePath = path.isAbsolute(config.screenshotPath)
@@ -86,13 +86,13 @@ export async function takeScreenShot(opts = {}) {
   await screenshot({ filename: outputPath, format });
 
   const bytes = await waitForFile(outputPath);
-  if (!bytes) throw new Error(`Screenshot không được ghi ra đĩa: ${outputPath}`);
+  if (!bytes) throw new Error(`Screenshot was not written to disk: ${outputPath}`);
 
   const buf = await fs.readFile(outputPath);
   const size = readImageSize(buf);
   if (!size) {
     const head = buf.subarray(0, 4).toString('hex');
-    throw new Error(`Không đọc được kích thước ảnh (header=0x${head}, ${buf.length} bytes)`);
+    throw new Error(`Could not read the image size (header=0x${head}, ${buf.length} bytes)`);
   }
 
   return { path: outputPath, width: size.width, height: size.height, bytes: buf.length };

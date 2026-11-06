@@ -1,4 +1,4 @@
-// cu/shot.mjs — chụp màn hình → PNG + tọa độ mouse
+// cu/shot.mjs — capture the screen to PNG and print the mouse coordinate
 import { createRequire } from 'module';
 import { mouse } from '@nut-tree-fork/nut-js';
 const require = createRequire('D:/computer use/package.json');

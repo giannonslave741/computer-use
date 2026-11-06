@@ -2,17 +2,17 @@ export const config = {
   intervalMs: 5000,
   maxSteps: 0,
   continueSession: true,
-  // model hỗ trợ vision + trả JSON action đúng; ghim cứng để xoay session được.
-  // ĐO ĐỘ NHẮM TỌA ĐỘ (4 điểm chuẩn, ảnh 1920x1080):
-  //   space-bunny-free    -> sai TB ~2px,  5s   (chọn)
-  //   longcat-...-free    -> sai TB 28px,  76s
-  //   nemotron-3.5-vl-free-> sai TB 150-400px, 40-190s  (nội dung OK nhưng nhắm sai chỗ,
-  //                          hay click vào khoảng trống -> không trúng ô tìm kiếm)
-  //   beam-free           -> KHÔNG thấy ảnh; openrouter/* -> không gọi được
+  // Vision model that returns a valid JSON action array. Pinned so sessions can rotate.
+  // AIM ERROR on 4 reference points, 1920x1080 image:
+  //   space-bunny-free    -> about 2px average, 5s   (selected)
+  //   longcat-...-free    -> 28px average, 76s
+  //   nemotron-3.5-vl-free-> 150-400px average, 40-190s (content is fine but the aim is off,
+  //                          and it clicks empty space instead of the search box)
+  //   beam-free           -> does NOT see the image; openrouter/* -> cannot be called
   model: 'opencode/space-bunny-free',
   agent: null,
   visionCmd: 'opencode',
-  // 'opencode' gọi CLI local. 'openai' gọi POST /chat/completions (mọi endpoint cùng chuẩn).
+  // 'opencode' calls the local CLI. 'openai' calls POST /chat/completions (any compatible endpoint).
   provider: process.env.CUA_PROVIDER || 'opencode',
   openai: {
     baseUrl: process.env.CUA_BASE_URL || 'https://api.openai.com/v1',
@@ -23,48 +23,48 @@ export const config = {
   failSafeCorner: true,
   failSafeCornerMs: 1000,
   failSafeCornerTolerancePx: 5,
-  // ảnh GỐC (png để đọc pixel, jpg để tloop/run_actions gửi model)
+  // Source image (png for pixels, jpg for tloop and run_actions to send to the model)
   screenshotPath: 'temp/latest.jpg',
   rawPngPath: 'temp/latest.png',
-  // Vẽ lưới tọa độ lên ảnh gửi model: chỉ cần khi model nhắm kém (vd nemotron).
-  // space-bunny-free nhắm ±2px không cần lưới -> tắt cho nhẹ (640KB/bước + 350ms).
+  // Draw a coordinate grid on the image sent to the model. Only needed when aim is poor (for example nemotron).
+  // space-bunny-free aims within about 2px, so the grid stays off (it added 640KB and 350ms per step).
   gridOverlay: false,
   gridStep: 100,
   gridQuant: 4,
-  // Phân tích pixel tự động (màn hình có đổi sau chuỗi, chuột có nằm đúng tọa độ...)
+  // Automatic pixel analysis (did the screen change, did the cursor land on the point)
   pixelAnalysis: true,
   sessionFile: '.cua-session.json',
-  // lịch sử session dài -> mỗi bước chậm dần (đo: 7s -> 16s -> 21s). Xoay sớm.
+  // A long session makes each step slower (measured 7s -> 16s -> 21s). Rotate early.
   rotateAfterCalls: 4,
 
-  // Cách bắn phím/chuột:
-  //   'auto'        -> dùng Interception nếu driver đã cài, không thì fallback SendInput (nut-js)
-  //   'interception'-> bắt buộc Interception, lỗi thì dừng
-  //   'nutjs'       -> luôn dùng SendInput (cũ)
+  // How keys and the mouse are sent:
+  //   'auto'        -> Interception when the driver is installed, otherwise SendInput (nut-js)
+  //   'interception'-> require Interception, and stop if it fails
+  //   'nutjs'       -> always use SendInput
   inputBackend: 'auto',
 
   interception: {
-    // null -> tự tìm vendor/interception.dll
+    // null -> find vendor/interception.dll automatically
     dllPath: null,
-    // 0 -> tự dò; số >0 -> ép thiết bị (keyboard 1..10, mouse 11..20)
+    // 0 -> auto-detect; a number > 0 forces the device (keyboard 1..10, mouse 11..20)
     keyboard: 0,
     mouse: 0,
-    // quét từng thiết bị rồi kiểm tra thật bằng GetCursorPos/GetAsyncKeyState
+    // scan each device and verify it with GetCursorPos / GetAsyncKeyState
     autoDetect: true,
-    // delay (ms) giữa 2 sự kiện phím
+    // delay in ms between two key events
     keyDelayMs: 12,
-    // thời gian giữ phím (ms) cho hành động 'press'
+    // how long a 'press' action holds the key, in ms
     holdMs: 60
   }
 };
 
-/** Trả về số đối số đã nuốt (0 nếu không phải cờ provider). Không in API key. */
+/** Returns how many argv items were consumed (0 if this is not a provider flag). Never prints the API key. */
 export function takeProviderFlag(argv, i) {
   const a = argv[i];
   if (a === '--provider') {
     const v = argv[i + 1];
     if (v !== 'opencode' && v !== 'openai') {
-      throw new Error(`provider không hỗ trợ: ${v}. Dùng opencode hoặc openai.`);
+      throw new Error(`Unsupported provider: ${v}. Use opencode or openai.`);
     }
     config.provider = v;
     return 2;

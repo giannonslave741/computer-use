@@ -11,7 +11,7 @@ const BUTTON_MAP = {
 
 function toButton(name) {
   const btn = BUTTON_MAP[String(name || 'left').toLowerCase()];
-  if (btn === undefined) throw new Error(`Nút chuột không hợp lệ: ${name}`);
+  if (btn === undefined) throw new Error(`Invalid mouse button: ${name}`);
   return btn;
 }
 
@@ -82,7 +82,7 @@ const interceptionBackend = {
     const value = String(text ?? '');
     const ok = await interception.typeText(value);
     if (ok !== false) return;
-    console.log('    [interception] không map được ký tự sang scan code -> dùng lại nut-js cho đoạn này');
+    console.log('    [interception] could not map a character to a scan code -> falling back to nut-js for this text');
     await nutjsBackend.typeText(value);
   },
   async pressKey(canonical) {
@@ -111,7 +111,7 @@ export async function resolveBackend() {
 
   if (mode === 'nutjs') {
     cached = nutjsBackend;
-    console.log('    Backend bắn lệnh: nut-js (SendInput)');
+    console.log('    Input backend: nut-js (SendInput)');
     return cached;
   }
 
@@ -120,14 +120,14 @@ export async function resolveBackend() {
     const devices = await interception.pickDevices();
     cached = interceptionBackend;
     console.log(
-      `    Backend bắn lệnh: INTERCEPTION (keyboard #${devices.keyboard}, mouse #${devices.mouse})`
+      `    Input backend: INTERCEPTION (keyboard #${devices.keyboard}, mouse #${devices.mouse})`
     );
     for (const line of interception.messages()) console.log(`      - ${line}`);
   } catch (err) {
     if (mode === 'interception') {
-      throw new Error(`inputBackend=interception nhưng không khởi tạo được: ${err.message}`);
+      throw new Error(`inputBackend=interception but it failed to start: ${err.message}`);
     }
-    console.log(`    Backend bắn lệnh: nut-js (SendInput) - Interception chưa sẵn sàng: ${err.message}`);
+    console.log(`    Input backend: nut-js (SendInput) - Interception is not ready: ${err.message}`);
     cached = nutjsBackend;
   }
 
@@ -142,6 +142,6 @@ process.on('exit', () => {
   try {
     interception.shutdown();
   } catch {
-    /* bỏ qua */
+    /* ignore */
   }
 });

@@ -1,4 +1,4 @@
-// cu/wheel.mjs — cuộn chuột tại toạ độ (test zoom canvas).
+// cu/wheel.mjs — scroll the mouse at a coordinate (canvas zoom test).
 //   node wheel.mjs <x> <y> <up|down> [notches]
 import { createRequire } from 'module';
 const require = createRequire('D:/computer use/package.json');

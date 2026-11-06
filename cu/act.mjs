@@ -1,5 +1,5 @@
-// cu/act.mjs — nâng cửa sổ theo HWND rồi bắn input TRONG CÙNG tiến trình
-// (tránh việc console của lệnh chen lên giữa raise và click).
+// cu/act.mjs — raise a window by HWND, then send input in the SAME process
+// (so this command's console cannot slip in between the raise and the click).
 //
 //   node act.mjs <hwnd> raise
 //   node act.mjs <hwnd> click <x> <y> [dbl|right]
@@ -33,9 +33,9 @@ function titleOf(h) {
 
 const [hwndArg, action, ...rest] = process.argv.slice(2);
 const hwnd = BigInt(hwndArg);
-if (!IsWindow(hwnd)) throw new Error(`HWND không hợp lệ: ${hwndArg}`);
+if (!IsWindow(hwnd)) throw new Error(`Invalid HWND: ${hwndArg}`);
 
-if (IsIconic(hwnd)) ShowWindow(hwnd, 9);   // chỉ restore khi minimize
+if (IsIconic(hwnd)) ShowWindow(hwnd, 9);   // restore only when minimized
 BringWindowToTop(hwnd);
 SetForegroundWindow(hwnd);
 await sleep(200);
@@ -47,7 +47,7 @@ console.log(`foreground_ok=${fg === hwnd}`);
 const b = await resolveBackend();
 
 if (action === 'raise') {
-  // chỉ nâng cửa sổ
+  // raise the window only
 } else if (action === 'click') {
   const [x, y, mode] = rest;
   await b.moveTo(parseFloat(x), parseFloat(y));
@@ -67,6 +67,6 @@ if (action === 'raise') {
     console.log(`key ${rest[0]}`);
   }
 } else {
-  throw new Error(`action lạ: ${action}`);
+  throw new Error(`Unknown action: ${action}`);
 }
 await sleep(150);

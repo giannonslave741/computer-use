@@ -48,7 +48,7 @@ const NUT_BY_NAME = (() => {
 
 export function resolveKeyName(name) {
   const raw = String(name ?? '').trim().toLowerCase();
-  if (!raw) throw new Error('Thiếu tên phím');
+  if (!raw) throw new Error('Missing key name');
   return ALIAS[raw] || raw;
 }
 
@@ -56,6 +56,6 @@ export function resolveNutKey(name) {
   const canonical = resolveKeyName(name);
   const key =
     NUT_BY_NAME[canonical] ?? NUT_BY_NAME[`left${canonical}`] ?? NUT_BY_NAME[`right${canonical}`];
-  if (key === undefined) throw new Error(`Phím không hợp lệ: ${name}`);
+  if (key === undefined) throw new Error(`Invalid key: ${name}`);
   return key;
 }

@@ -1,4 +1,4 @@
-// cu/type.mjs — gõ text: node type.mjs <text...>
+// cu/type.mjs — type text: node type.mjs <text...>
 import { resolveBackend } from '../backends.js';
 import { sleep } from '@nut-tree-fork/nut-js';
 

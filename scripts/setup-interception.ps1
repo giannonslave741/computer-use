@@ -1,11 +1,11 @@
 ﻿<#
 .SYNOPSIS
-  Cài/gỡ driver Interception cho computer-use.
+  Install or remove the Interception driver for computer-use.
 
 .DESCRIPTION
-  - Tải Interception.zip từ GitHub release nếu chưa có vendor/interception.dll
-  - Giải nén interception.dll (x64) + install-interception.exe vào vendor/
-  - Chạy install-interception.exe /install  (cần quyền Administrator)
+  - Download Interception.zip from the GitHub release when vendor/interception.dll is missing
+  - Extract interception.dll (x64) and install-interception.exe into vendor/
+  - Run install-interception.exe /install  (requires Administrator)
 
 .USAGE
   npm run setup-driver
@@ -34,9 +34,9 @@ function Test-Admin {
     return $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
-# --- tự elevate nếu chưa phải Admin ---
+# --- elevate when this process is not Admin ---
 if (-not (Test-Admin)) {
-    Write-Host 'Cần quyền Administrator - đang mở cửa sổ PowerShell Admin...' -ForegroundColor Yellow
+    Write-Host 'Administrator is required - opening an elevated PowerShell window...' -ForegroundColor Yellow
     $argList = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"")
     if ($Uninstall) { $argList += '-Uninstall' } else { $argList += '-Install' }
     Start-Process -FilePath 'powershell.exe' -ArgumentList $argList -Verb RunAs
@@ -45,11 +45,11 @@ if (-not (Test-Admin)) {
 
 if (-not (Test-Path $vendor)) { New-Item -ItemType Directory -Path $vendor | Out-Null }
 
-# --- tải file nếu thiếu ---
+# --- download the files when they are missing ---
 if (-not (Test-Path $dll) -or -not (Test-Path $setup)) {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
     $zip = Join-Path $env:TEMP 'Interception.zip'
-    Write-Host "Đang tải $release ..." -ForegroundColor Cyan
+    Write-Host "Downloading $release ..." -ForegroundColor Cyan
     Invoke-WebRequest -Uri $release -OutFile $zip
 
     $tmp = Join-Path $env:TEMP ("interception-" + [Guid]::NewGuid().ToString('N'))
@@ -60,28 +60,28 @@ if (-not (Test-Path $dll) -or -not (Test-Path $setup)) {
                   Where-Object { $_.FullName -match '\\x64\\' } | Select-Object -First 1
     $foundDll   = if ($foundDll64) { $foundDll64 } else { Get-ChildItem -Path $tmp -Recurse -Filter 'interception.dll' | Select-Object -First 1 }
 
-    if (-not $foundSetup -or -not $foundDll) { throw 'Không tìm thấy install-interception.exe / interception.dll trong zip' }
+    if (-not $foundSetup -or -not $foundDll) { throw 'install-interception.exe / interception.dll was not found in the zip' }
 
     Copy-Item $foundSetup.FullName $setup -Force
     Copy-Item $foundDll.FullName   $dll   -Force
     Remove-Item $tmp -Recurse -Force
     Remove-Item $zip -Force
-    Write-Host "Đã chuẩn bị:`n  $dll`n  $setup" -ForegroundColor Green
+    Write-Host "Prepared:`n  $dll`n  $setup" -ForegroundColor Green
 }
 
-# --- cài / gỡ driver ---
+# --- install or remove the driver ---
 if ($Uninstall) {
-    Write-Host 'Đang gỡ driver Interception...' -ForegroundColor Cyan
+    Write-Host 'Removing the Interception driver...' -ForegroundColor Cyan
     & $setup /uninstall
 } else {
-    Write-Host 'Đang cài driver Interception...' -ForegroundColor Cyan
+    Write-Host 'Installing the Interception driver...' -ForegroundColor Cyan
     & $setup /install
 }
 
 Write-Host ''
-Write-Host 'Trạng thái service "interception":' -ForegroundColor Cyan
+Write-Host 'Service "interception" status:' -ForegroundColor Cyan
 sc.exe query interception 2>&1 | Out-String | Write-Host
 
 if ($Install) {
-    Write-Host 'Kiểm tra nhanh bằng:  npm run test-input' -ForegroundColor Green
+    Write-Host 'Quick check:  npm run test-input' -ForegroundColor Green
 }

@@ -1,36 +1,36 @@
-MUC TIEU: Mo trinh duyet Chrome, vao YouTube, tim mot bai nhac bat ky.
+GOAL: Open Chrome, go to YouTube, and search for any song.
 
-BUOC0 - NEU MAN HINH DANG FULLSCREEN (khong thay thanh dia chi / thanh tab / thanh tim kiem):
-- Neu Chrome chua foreground: [{"action":"window_activate","target":"Google Chrome"}] truoc.
-- Roi nhan ESC: [{"action":"press","key":"ESC"}]  (van khong duoc thi [{"action":"press","key":"F11"}])
-- Chup lai. Chi khi thay duoc thanh dia chi/thanh tim kiem moi tiep tuc.
-- TUYET DOI KHONG double-click vao video/noi dung (no se bat fullscreen lai).
+STEP 0 - IF THE SCREEN IS FULLSCREEN (no address bar, tab strip, or search box):
+- If Chrome is not in the foreground: [{"action":"window_activate","target":"Google Chrome"}] first.
+- Then press ESC: [{"action":"press","key":"ESC"}]  (if that fails, [{"action":"press","key":"F11"}])
+- Capture again. Continue only when the address bar or search box is visible.
+- NEVER double-click video or content (that turns fullscreen back on).
 
-BUOC1 - MO/CHUYEN SANG CUA SO CHROME:
-- Neu Chrome CHUA phai foreground (doc dong "Foreground" o tren): dua len truoc:
+STEP 1 - OPEN OR SWITCH TO THE CHROME WINDOW:
+- If Chrome is NOT the foreground (read the "Foreground" line above), raise it:
   [{"action":"window_activate","target":"Google Chrome"}]
-- Neu khong tim thay, dung [{"action":"window_list"}] roi chon target {"process":"chrome.exe"}.
-- Cho chu ky sau chup anh. KHONG click toa do khi chua thay ro cua so Chrome.
+- If it is not found, use [{"action":"window_list"}] and then target {"process":"chrome.exe"}.
+- Wait for the next capture. Do NOT click coordinates until the Chrome window is clearly visible.
 
-BUOC2 - VAO YOUTUBE:
-- Mo trang YouTube:
+STEP 2 - GO TO YOUTUBE:
+- Open YouTube:
   [{"action":"hotkey","keys":["CTRL","L"]},{"action":"type","text":"youtube.com"},{"action":"press","key":"ENTER"}]
-- Cho load: [{"action":"wait","ms":4000}] roi chup lai de xem da len YouTube chua.
+- Wait for load: [{"action":"wait","ms":4000}] then capture again to see whether YouTube is up.
 
-BUOC3 - TIM NHAC:
-- BAT BUOC: click vao o tim kiem cua YouTube TRUOC, roi moi go chu. Khong duoc go mu.
-- Neu o da co chu cu: click vao o -> [{"action":"hotkey","keys":["CTRL","A"]}] -> go ten bai -> ENTER.
-- Ten bai nhac bat ky, vi du "lofi chill", "nhac tre hay nhat".
-- TUYET DOI KHONG scroll trang de tim nhac. Phai dung o tim kiem.
-- Cho ket qua: [{"action":"wait","ms":3000}].
+STEP 3 - SEARCH FOR MUSIC:
+- REQUIRED: click the YouTube search box FIRST, then type. Do not type blindly.
+- If the box already has text: click it -> [{"action":"hotkey","keys":["CTRL","A"]}] -> type a song name -> ENTER.
+- Any song name, for example "lofi chill".
+- NEVER scroll the page to find music. Use the search box.
+- Wait for results: [{"action":"wait","ms":3000}].
 
-BUOC4 - XAC NHAN:
-- Neu thay danh sach video ket qua tim kiem: tra [{"action":"done","reason":"da tim nhac tren YouTube"}].
-- Neu van o trang chu/chua tim thay o tim kiem: lap lai BUOC3.
-- Neu bi loi/khong tai duoc: lap lai BUOC2.
+STEP 4 - CONFIRM:
+- If a list of search-result videos is visible: return [{"action":"done","reason":"found music on YouTube"}].
+- If you are still on the home page or cannot see the search box: repeat STEP 3.
+- If the page failed to load: repeat STEP 2.
 
-QUY TAC BAT BUOC:
-- Truoc moi click/type/press: dam bao cua so Chrome dang foreground. Neu bi cua so khac che hay Chrome van minimize: [{"action":"window_activate","target":"Google Chrome"}].
-- Khong click o toa do x <= 10 va y <= 10.
-- Chi tra ve 1 mang JSON, toi da 5 thao tac.
-- TUYET DOI KHONG tóm tắt màn hình hay binh luan. Chi tra hanh dong JSON.
+REQUIRED RULES:
+- Before every click/type/press, make sure the Chrome window is in the foreground. If another window covers it or Chrome is minimized: [{"action":"window_activate","target":"Google Chrome"}].
+- Do not click at x <= 10 and y <= 10.
+- Return only one JSON array, at most 5 actions.
+- Do NOT summarize the screen or comment. Return only the JSON actions.

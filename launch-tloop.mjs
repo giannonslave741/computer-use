@@ -1,5 +1,5 @@
-// Launcher cho tloop: chay detached, log vao tloop.log / tloop.err.log.
-// Chay: node launch-tloop.mjs [--interval 120000] [--spam-ms 500] [--dry-run] ...
+// Launcher for tloop: run detached, log to tloop.log / tloop.err.log.
+// Run: node launch-tloop.mjs [--interval 120000] [--spam-ms 500] [--dry-run] ...
 import { spawn } from 'node:child_process';
 import { openSync, rmSync } from 'node:fs';
 import path from 'node:path';
@@ -20,6 +20,6 @@ const child = spawn(process.execPath, ['tloop.mjs', ...process.argv.slice(2)], {
 });
 child.unref();
 
-console.log(`tloop da khoi chong pid=${child.pid}`);
-console.log(`Log: ${logPath} | Log loi: ${errPath}`);
-console.log('Dung: npm run tloop:stop  (tao stop-tloop.flag)');
+console.log(`tloop started, pid=${child.pid}`);
+console.log(`Log: ${logPath} | Error log: ${errPath}`);
+console.log('Stop: npm run tloop:stop  (creates stop-tloop.flag)');

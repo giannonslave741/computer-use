@@ -14,9 +14,9 @@
     "test-all": "node test_parser.js && node test-windows.js && node test-input.js",
     "wander": "node wander.mjs",
     "wander:2min": "node wander.mjs --seconds 120",
-    "wander:stop": "node -e \"require('fs').writeFileSync('stop-wander.flag','1');console.log('da tao stop-wander.flag')\"",
+    "wander:stop": "node -e \"require('fs').writeFileSync('stop-wander.flag','1');console.log('wrote stop-wander.flag')\"",
     "tloop": "node launch-tloop.mjs",
-    "tloop:stop": "node -e \"require('fs').writeFileSync('stop-tloop.flag','1');console.log('da tao stop-tloop.flag')\""
+    "tloop:stop": "node -e \"require('fs').writeFileSync('stop-tloop.flag','1');console.log('wrote stop-tloop.flag')\""
   },
   "keywords": [],
   "author": "",

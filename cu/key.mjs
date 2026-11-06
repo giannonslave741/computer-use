@@ -1,4 +1,4 @@
-// cu/key.mjs — node key.mjs <key...> ; ví dụ: enter | control a
+// cu/key.mjs — node key.mjs <key...> ; example: enter | control a
 import { resolveBackend } from '../backends.js';
 import { sleep } from '@nut-tree-fork/nut-js';
 

@@ -7,7 +7,7 @@ const MAX_TOKENS = 512;
 
 export function chatCompletionsUrl(baseUrl) {
   const trimmed = String(baseUrl || '').trim().replace(/\/+$/, '');
-  if (!trimmed) throw new Error('Thiếu base URL. Đặt --base-url hoặc CUA_BASE_URL.');
+  if (!trimmed) throw new Error('Missing base URL. Set --base-url or CUA_BASE_URL.');
   if (trimmed.endsWith('/chat/completions')) return trimmed;
   return `${trimmed}/chat/completions`;
 }
@@ -81,8 +81,8 @@ function clip(text) {
 }
 
 export async function askOpenai({ goal, step, img, history }) {
-  if (!config.model) throw new Error('Thiếu model. Đặt --model theo tên model của endpoint.');
-  if (!img?.path) throw new Error('Không có file ảnh để gửi.');
+  if (!config.model) throw new Error('Missing model. Set --model to the endpoint model name.');
+  if (!img?.path) throw new Error('No image file to send.');
 
   const url = chatCompletionsUrl(config.openai.baseUrl);
   const bytes = await fs.readFile(img.path);
@@ -94,7 +94,7 @@ export async function askOpenai({ goal, step, img, history }) {
   const post = (tokenField) =>
     postChat(url, requestBody(config.model, prompt, dataUrl, tokenField), signal).catch((err) => {
       if (err?.name === 'TimeoutError' || err?.name === 'AbortError') {
-        throw new Error(`Vision hết thời gian sau ${config.requestTimeoutMs}ms`);
+        throw new Error(`Vision timed out after ${config.requestTimeoutMs}ms`);
       }
       throw err;
     });
@@ -105,14 +105,14 @@ export async function askOpenai({ goal, step, img, history }) {
   const durationMs = Date.now() - started;
 
   if (!sent.ok) {
-    throw new Error(`Vision HTTP ${sent.status}: ${clip(sent.text) || 'không có nội dung'}`);
+    throw new Error(`Vision HTTP ${sent.status}: ${clip(sent.text) || 'empty body'}`);
   }
 
   let data;
   try {
     data = JSON.parse(sent.text);
   } catch {
-    throw new Error(`Vision trả về không phải JSON: ${clip(sent.text)}`);
+    throw new Error(`Vision response was not JSON: ${clip(sent.text)}`);
   }
 
   const text = messageText(data);

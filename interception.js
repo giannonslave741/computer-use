@@ -173,7 +173,7 @@ export function init() {
   try {
     dll = koffi.load(dllPath);
   } catch (err) {
-    throw new Error(`không tải được ${dllPath}: ${err.message}`);
+    throw new Error(`could not load ${dllPath}: ${err.message}`);
   }
 
   const MouseStroke = koffi.struct('InterceptionMouseStroke', {
@@ -192,7 +192,7 @@ export function init() {
 
   if (koffi.sizeof(MouseStroke) !== 20 || koffi.sizeof(KeyStroke) !== 8) {
     throw new Error(
-      `kích thước struct sai (mouse=${koffi.sizeof(MouseStroke)}, key=${koffi.sizeof(KeyStroke)})`
+      `wrong struct size (mouse=${koffi.sizeof(MouseStroke)}, key=${koffi.sizeof(KeyStroke)})`
     );
   }
 
@@ -215,7 +215,7 @@ export function init() {
   const context = createContext();
   if (!context) {
     throw new Error(
-      'interception_create_context() trả về NULL - driver Interception chưa được cài (chạy scripts/setup-interception.ps1 với quyền Admin)'
+      'interception_create_context() returned NULL - the Interception driver is not installed (run scripts/setup-interception.ps1 as Administrator)'
     );
   }
 
@@ -230,7 +230,7 @@ export function shutdown() {
     try {
       state.destroy();
     } catch {
-      /* bỏ qua */
+      /* ignore */
     }
     state.destroy = null;
   }
@@ -272,7 +272,7 @@ export function listDevices() {
 
 function cursor() {
   const pos = {};
-  if (!win32.getCursorPos(pos)) throw new Error('GetCursorPos thất bại');
+  if (!win32.getCursorPos(pos)) throw new Error('GetCursorPos failed');
   return { x: pos.x, y: pos.y };
 }
 
@@ -290,14 +290,14 @@ function normalize(value, size) {
 }
 
 function sendMouseStroke(device, stroke) {
-  if (!state.ready) throw new Error('Interception chưa khởi tạo');
-  if (!device) throw new Error('Chưa chọn được thiết bị chuột Interception');
+  if (!state.ready) throw new Error('Interception is not initialized');
+  if (!device) throw new Error('No Interception mouse device was selected');
   return state.sendMouse(state.context, device, stroke, 1);
 }
 
 function sendKeyStroke(device, code, flags) {
-  if (!state.ready) throw new Error('Interception chưa khởi tạo');
-  if (!device) throw new Error('Chưa chọn được thiết bị bàn phím Interception');
+  if (!state.ready) throw new Error('Interception is not initialized');
+  if (!device) throw new Error('No Interception keyboard device was selected');
   return state.sendKey(state.context, device, { code, state: flags, information: 0 }, 1);
 }
 
@@ -381,7 +381,7 @@ export async function pickDevices() {
   if (cfg.autoDetect === false) {
     state.keyboard = wantedKb || 1;
     state.mouse = wantedMouse || MAX_KEYBOARD + 1;
-    log(`autoDetect tắt: keyboard #${state.keyboard}, mouse #${state.mouse}`);
+    log(`autoDetect off: keyboard #${state.keyboard}, mouse #${state.mouse}`);
     return { keyboard: state.keyboard, mouse: state.mouse };
   }
 
@@ -398,25 +398,25 @@ export async function pickDevices() {
   for (const d of mouseOrder) {
     if (await probeMouse(d)) {
       state.mouse = d;
-      log(`mouse hoạt động: #${d}${hardwareId(d) ? ` (${hardwareId(d)})` : ''}`);
+      log(`mouse works: #${d}${hardwareId(d) ? ` (${hardwareId(d)})` : ''}`);
       break;
     }
   }
   if (!state.mouse) {
     state.mouse = mouseOrder[0] || 0;
-    log(`không dò được mouse, dùng #${state.mouse}`);
+    log(`could not probe a mouse, using #${state.mouse}`);
   }
 
   for (const d of kbOrder) {
     if (await probeKeyboard(d)) {
       state.keyboard = d;
-      log(`keyboard hoạt động: #${d}${hardwareId(d) ? ` (${hardwareId(d)})` : ''}`);
+      log(`keyboard works: #${d}${hardwareId(d) ? ` (${hardwareId(d)})` : ''}`);
       break;
     }
   }
   if (!state.keyboard) {
     state.keyboard = kbOrder[0] || 0;
-    log(`không dò được keyboard, dùng #${state.keyboard}`);
+    log(`could not probe a keyboard, using #${state.keyboard}`);
   }
 
   return { keyboard: state.keyboard, mouse: state.mouse };
@@ -437,7 +437,7 @@ export function moveTo(x, y) {
 export function setButton(button, down) {
   assertReady();
   const btn = BUTTON_STATE[String(button || 'left').toLowerCase()];
-  if (!btn) throw new Error(`Nút chuột không hợp lệ: ${button}`);
+  if (!btn) throw new Error(`Invalid mouse button: ${button}`);
   sendMouseStroke(state.mouse, {
     state: down ? btn.down : btn.up,
     flags: 0,
@@ -503,9 +503,9 @@ export async function keyUp(name) {
 
 function scanForName(name) {
   const vk = vkForName(name);
-  if (vk == null) throw new Error(`Phím không hỗ trợ qua Interception: ${name}`);
+  if (vk == null) throw new Error(`Key is not supported through Interception: ${name}`);
   const scan = toScan(vk);
-  if (!scan) throw new Error(`Không tra được scan code cho phím: ${name}`);
+  if (!scan) throw new Error(`No scan code for key: ${name}`);
   return scan;
 }
 
@@ -543,7 +543,7 @@ export async function typeText(text) {
   const delay = () => sleepMs(config.interception?.keyDelayMs ?? 12);
   const tap = async (vk, flagsBase) => {
     const scan = toScan(vk);
-    if (!scan) throw new Error(`Không tra được scan code (vk=0x${vk.toString(16)})`);
+    if (!scan) throw new Error(`No scan code (vk=0x${vk.toString(16)})`);
     sendKeyStroke(state.keyboard, scan.code, scan.flags | flagsBase);
   };
 

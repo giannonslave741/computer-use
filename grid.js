@@ -1,11 +1,11 @@
-// grid.js — Vẽ lưới tọa độ lên ảnh screenshot rồi trả về buffer PNG mới.
+// grid.js — Draw a coordinate grid on a screenshot and return a new PNG buffer.
 //
-// Lý do tồn tại: model VL miễn phí ĐỌC đúng nội dung ảnh nhưng ước tọa độ SAI trầm trọng
-// (thực tế ô tìm kiếm ở 57%,42% -> model đoán 40%,27% -> click vào khoảng trống).
-// Bằng cách vẽ thẳng số tọa độ lên ảnh, model chỉ cần ĐỌC số gần điểm cần click
-// thay vì ước lượng -> click trúng đích.
+// Why it exists: a free vision model can READ the image but estimates coordinates badly
+// (a search box really at 57%,42% was guessed as 40%,27%, so the click hit empty space).
+// Painting the coordinate numbers onto the image lets the model READ the number near the
+// click instead of guessing.
 //
-// Không thêm dependency nào: tự giải mã + mã hoá PNG bằng zlib có sẵn của Node.
+// No extra dependency: PNG is decoded and encoded with Node's built-in zlib.
 
 import zlib from 'node:zlib';
 import fs from 'node:fs/promises';
@@ -35,7 +35,7 @@ function chunk(type, data) {
   return Buffer.concat([len, body, crc]);
 }
 
-/** Đọc buffer PNG -> { width, height, rgba: Uint8Array }. Trả về null nếu không hỗ trợ. */
+/** Read a PNG buffer into { width, height, rgba }. Returns null when the PNG is unsupported. */
 export function decodePng(buf) {
   try {
     if (buf.length < 24 || buf.readUInt32BE(0) !== 0x89504e47) return null;
@@ -61,7 +61,7 @@ export function decodePng(buf) {
       }
       offset += 12 + len;
     }
-    // Chỉ hỗ trợ 8-bit, không nén interlace (screenshot-desktop luôn xuất dạng này).
+    // Only 8-bit, non-interlaced PNGs (screenshot-desktop always writes this form).
     if (!ihdr || ihdr.bitDepth !== 8 || ihdr.interlace !== 0) return null;
     const channels = ihdr.colorType === 6 ? 4 : ihdr.colorType === 2 ? 3 : 0;
     if (!channels) return null;
@@ -71,7 +71,7 @@ export function decodePng(buf) {
     const stride = w * channels;
     const rgba = new Uint8Array(w * h * 4);
 
-    // Bỏ lọc từng dòng (PNG filter types 0..4).
+    // Undo per-row filters (PNG filter types 0..4).
     let prev = Buffer.alloc(stride);
     for (let y = 0; y < h; y++) {
       const rowStart = y * (stride + 1);
@@ -119,8 +119,8 @@ export function decodePng(buf) {
 }
 
 /**
- * Mã hoá RGBA -> buffer PNG (color type 2/RGB, filter 0) — bỏ kênh alpha cho file nhỏ hơn.
- * @param {number} quantSố bit còn lại mỗi kênh (0 = giữ nguyên). Cắt bit làm PNG nén tốt hơn nhiều.
+ * Encode RGBA to a PNG buffer (color type 2/RGB, filter 0). The alpha channel is dropped so the file is smaller.
+ * @param {number} quant Bits kept per channel (0 keeps them all). Dropping bits compresses the PNG a lot.
  */
 export function encodePng(width, height, rgba, quant = 0) {
   const stride = width * 3;
@@ -186,7 +186,7 @@ function fillRect(img, x0, y0, w, h, r, g, b, a) {
   }
 }
 
-/** Vẽ chuỗi chữ số (chỉ 0-9) với nền tối để đọc được trên mọi nền. */
+/** Draw a digit string (0-9 only) on a dark background so it stays readable. */
 function drawNumber(img, value, x, y, scale = 3) {
   const text = String(value);
   const gw = 5 * scale;
@@ -208,7 +208,7 @@ function drawNumber(img, value, x, y, scale = 3) {
 }
 
 /**
- * Vẽ lưới tọa độ lên khung hình đã giải mã.
+ * Draw a coordinate grid on a decoded frame.
  * @param {{width:number,height:number,rgba:Uint8Array}} img
  * @param {{step?: number, quant?: number}} opts
  * @returns {{png: Buffer, width: number, height: number, step: number}}
@@ -218,7 +218,7 @@ export function renderGrid(img, opts = {}) {
   const w = img.width;
   const h = img.height;
 
-  // Đường dọc (x) và ngang (y) — mảnh, màu đỏ cam, bán trong suốt để không che UI.
+  // Vertical (x) and horizontal (y) lines: thin, orange-red, and partly transparent so they do not hide the UI.
   for (let x = step; x < w; x += step) {
     const major = x % (step * 2) === 0;
     fillRect(img, x, 0, major ? 2 : 1, h, 255, 60, 40, major ? 150 : 80);
@@ -228,20 +228,20 @@ export function renderGrid(img, opts = {}) {
     fillRect(img, 0, y, w, major ? 2 : 1, 255, 60, 40, major ? 150 : 80);
   }
 
-  // Nhãn số: cạnh trên = X, cạnh trái = Y (đọc theo lưới tuyệt đối).
-  // Nhãn dày (mỗi step) vì model nhắm theo nhãn gần nhất — nhãn thưa làm sai ~100px.
+  // Number labels: top edge is X, left edge is Y (absolute grid).
+  // A label on every step, because the model aims at the nearest label. Sparse labels miss by about 100px.
   const scale = 3;
   const gh = 7 * scale;
   for (let x = step; x < w - 70; x += step) drawNumber(img, x, x, 6, scale);
   for (let y = step; y < h - gh - 10; y += step) drawNumber(img, y, 6, y, scale);
 
-  // Góc trên-trái = 0,0 để model không lẫn gốc toạ độ.
+  // Top-left is 0,0 so the model does not confuse the origin.
   drawNumber(img, '0', 6, 6 + gh + 6, scale);
 
   return { png: encodePng(w, h, img.rgba, opts.quant || 0), width: w, height: h, step };
 }
 
-/** Bọc lại từ buffer PNG (dùng cho script thử nghiệm). */
+/** Draw a grid from a PNG buffer (used by tests). */
 export function drawGrid(pngBuffer, opts = {}) {
   const img = decodePng(pngBuffer);
   if (!img) return null;
@@ -249,11 +249,11 @@ export function drawGrid(pngBuffer, opts = {}) {
 }
 
 /**
- * Chuẩn bị ảnh cho 1 bước: đọc PNG gốc -> khung pixel GỐC (cho phân tích pixel)
- * -> (tuỳ chọn) vẽ lưới lên bản SAO -> đường dẫn file gửi model.
- * Khung pixel KHÔNG được chứa lưới, nếu không so sánh 2 khung hình sẽ toàn ra "lưới đổi".
+ * Prepare one step's image: read the original PNG into the ORIGINAL pixel frame (for pixel analysis),
+ * optionally draw the grid on a COPY, and return the path sent to the model.
+ * The pixel frame must not contain the grid, or a later comparison would report that the grid changed.
  *
- * @param {string} pngPath ảnh PNG vừa chụp
+ * @param {string} pngPath PNG that was just captured
  * @param {{grid?: boolean, step?: number, quant?: number, gridPath?: string}} opts
  * @returns {Promise<{path: string, frame: {w:number,h:number,rgba:Uint8Array}|null,
  *                    width: number, height: number}>}
@@ -268,7 +268,7 @@ export async function prepareShot(pngPath, opts = {}) {
   const img = decodePng(buf);
   if (!img) return { path: pngPath, frame: null, width: 0, height: 0 };
 
-  // bản sao pixel gốc -> dùng để phân tích; renderGrid sẽ vẽ lên `img`.
+  // copy of the original pixels for analysis; renderGrid draws on `img`.
   const frame = { w: img.width, h: img.height, rgba: img.rgba.slice() };
 
   let outPath = pngPath;

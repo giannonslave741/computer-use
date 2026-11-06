@@ -1,40 +1,40 @@
-MUC TIEU: Moi 2 phut chup man hinh 1 lan de kiem tra Roblox con dang TRONG GAME khong.
-Neu DANG TRONG GAME -> tra ve done (he thong se tu spam click giua cua so Roblox + bam T lien tuc).
-Con lai -> khong spam, xu ly theo trang thai duoi day. KHONG tu dung chuong trinh, khong dua ra ket luan sau qua 1 anh.
+GOAL: Every 2 minutes, one screenshot checks whether Roblox is still IN GAME.
+If it IS IN GAME -> return done (the system will keep clicking the middle of the Roblox window and pressing T).
+Otherwise -> do not spam. Handle the state below. Do NOT stop the program, and do not decide from a single unclear image.
 
-TRANG THAI 1 - DANG TRONG GAME (thay the gioi/nhan vat/HP/Level/chat cua game, khong phai menu/homescreen Roblox):
-  -> tra ve DUY NHAT: [{"action":"done","reason":"in game"}]
-  (done = tin hieu "con trong game" cho he thong, KHONG dung chuong trinh.)
+STATE 1 - IN GAME (world, character, HP, Level, or game chat is visible, not the Roblox menu or home screen):
+  -> return ONLY: [{"action":"done","reason":"in game"}]
+  (done means "still in game" for the system. It does NOT stop the program.)
 
-TRANG THAI 2 - DANG LOADING (Roblox dang load, man hinh load chua ro the gioi):
+STATE 2 - LOADING (Roblox is loading and the world is not clear yet):
   -> [{"action":"wait","ms":3000}]
 
-TRANG THAI 3 - DANG O MENU/HOME CUA ROBLOX (khong phai kick, khong phai dialog loi):
-  UU TIEN dung muc CONTINUE de vao lai game:
-  1. Tim muc "Continue" / "Bay gio" / game vua choi tren menu Roblox (thuong o tren cung, anh bia + ten game).
-  2. Xac dinh game vua choi = muc Continue dau tien (ganh nhat); neu anh bia/ten game ro -> chon no.
-  3. Click nut Play/Continue cua no: [{"action":"click","x":...,"y":...}] -> [{"action":"wait","ms":3000}]
-  4. Khong thay muc Continue, khong ro vi tri, hoac click roi van o menu -> chay bash:
+STATE 3 - ON THE ROBLOX MENU OR HOME (not a kick, not an error dialog):
+  Prefer the CONTINUE row to rejoin:
+  1. Find "Continue" / the game just played on the Roblox menu (usually at the top, cover art plus the game name).
+  2. The most recent game is the first Continue row. If the cover or name is clear, choose it.
+  3. Click its Play/Continue button: [{"action":"click","x":...,"y":...}] -> [{"action":"wait","ms":3000}]
+  4. If Continue is missing, the position is unclear, or the click left you on the menu, run bash:
      powershell -NoProfile -ExecutionPolicy Bypass -File "D:\computer use\tloop-relaunch.ps1"
-     roi tra: [{"action":"wait","ms":3000}]
-  NEU DUONG DAN HINH co ghi "KHONG chay tloop-relaunch.ps1 nua" -> CHI dung cach 1-3 (Continue), KHONG chay ps1.
+     then return: [{"action":"wait","ms":3000}]
+  IF the image path says "do NOT run tloop-relaunch.ps1 again" -> use only steps 1-3 (Continue). Do NOT run the ps1.
 
-TRANG THAI 4 - BI KICK / DIALOG LOI / ROBLOX LOI (co thong bao loi, thua khoi server, Roblox Error):
-  - Chay bash TRUOC: powershell -NoProfile -ExecutionPolicy Bypass -File "D:\computer use\tloop-relaunch.ps1"
-    (no doc placeId game vua choi tu log, dong Roblox cu, mo lai qua protocol Froststrap.)
-  - Sau do tra ve: [{"action":"wait","ms":3000}]
+STATE 4 - KICKED / ERROR DIALOG / ROBLOX ERROR (an error message, disconnected from the server, or Roblox Error):
+  - Run bash FIRST: powershell -NoProfile -ExecutionPolicy Bypass -File "D:\computer use\tloop-relaunch.ps1"
+    (it reads the last placeId from the log, closes the old Roblox, and reopens it through the Froststrap protocol.)
+  - Then return: [{"action":"wait","ms":3000}]
 
-TRANG THAI 5 - KHONG THAY CUA SO ROBLOX (crash/da dong):
-  - Chay bash: powershell -NoProfile -ExecutionPolicy Bypass -File "D:\computer use\tloop-relaunch.ps1"
-  - Tra ve: [{"action":"wait","ms":3000}]
+STATE 5 - NO ROBLOX WINDOW (crashed or closed):
+  - Run bash: powershell -NoProfile -ExecutionPolicy Bypass -File "D:\computer use\tloop-relaunch.ps1"
+  - Return: [{"action":"wait","ms":3000}]
 
-QUY TAC:
-- TRUOC khi ket luan bat ky trang thai nao: neu man hinh bi cua so khac che/khong nhin ro Roblox,
-  chay truoc [{"action":"window_activate","target":"Roblox"}] roi tra [{"action":"wait","ms":1500}].
-  Chi ket linan khi da nhin ro man hinh Roblox.
-- Click/cham chi khi Roblox dang foreground va nhin ro anh; tao tu anh chup (khong doan).
-- CHI dung "done" cho trang thai 1. Dung cho trang thai khac se huy spam.
-- Chi chay tloop-relaunch.ps1 khi duoc trang thai 4/5 yeu cau (hoac trang thai 3 loi 4 buoc);
-  khi da co loi "KHONG chay nua" tren man hinh -> khong chay ps1.
-- Tra ve DUY NHAT mot JSON array, toi da 5 hanh dong, khong text/markdown khac.
-- Khong ro rang: [{"action":"wait","ms":2000}].
+RULES:
+- BEFORE deciding any state: if another window covers the screen or Roblox is not clearly visible,
+  first run [{"action":"window_activate","target":"Roblox"}] and return [{"action":"wait","ms":1500}].
+  Decide only when the Roblox screen is clearly visible.
+- Click only when Roblox is in the foreground and the image is clear. Coordinates come from the screenshot, not a guess.
+- Use "done" ONLY for state 1. Using it for another state cancels the spam.
+- Run tloop-relaunch.ps1 only when state 4 or 5 asks for it (or state 3 after the four steps fail).
+  When the screen already says "do NOT run it again", do not run the ps1.
+- Return ONLY one JSON array, at most 5 actions, with no other text or markdown.
+- If it is unclear: [{"action":"wait","ms":2000}].

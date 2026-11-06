@@ -1,4 +1,4 @@
-// MCP dùng stdout cho JSON-RPC. Mọi log của executor phải ra stderr.
+// MCP uses stdout for JSON-RPC. Executor logs must go to stderr.
 console.log = (...args) => {
   console.error(...args);
 };

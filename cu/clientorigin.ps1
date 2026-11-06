@@ -1,5 +1,5 @@
-# Gốc client-area của cửa sổ trên màn hình (không đoán pixel).
-# Dùng: powershell -File clientorigin.ps1 "<phần tiêu đề>"
+# Client-area origin of a window on screen (not a pixel guess).
+# Use: powershell -File clientorigin.ps1 "<part of the title>"
 param([string]$TitlePart)
 
 $sig = @'

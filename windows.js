@@ -1,8 +1,8 @@
 import koffi from 'koffi';
 
 // ---------------------------------------------------------------------------
-// Window Management Layer cho computer-use
-// Goi truc tiep Windows User32 / Kernel32 / Dwmapi qua koffi (khong qua PowerShell)
+// Window management layer for computer-use.
+// Calls Windows User32 / Kernel32 / Dwmapi through koffi (not through PowerShell).
 // ---------------------------------------------------------------------------
 
 const user32 = koffi.load('user32.dll');
@@ -51,7 +51,7 @@ const api = {
   closeHandle: kernel32.func('int __stdcall CloseHandle(void *hObject)')
 };
 
-// DwmGetWindowAttribute de loai bo cua so bi "cloak" (UWP/Shell an) - tuy chon
+// DwmGetWindowAttribute drops cloaked windows (hidden UWP/Shell). Optional.
 let dwmGetWindowAttribute = null;
 try {
   const dwmapi = koffi.load('dwmapi.dll');
@@ -62,8 +62,8 @@ try {
   dwmGetWindowAttribute = null;
 }
 
-// WindowFromPoint can thiep POINT by value - khong dat ten struct rieng de khong
-// xung dot voi koffi.struct('POINT') dang co trong interception.js
+// WindowFromPoint takes POINT by value. Do not name a separate struct, or it
+// collides with koffi.struct('POINT') already defined in interception.js.
 let windowAtPointFn = null;
 try {
   const POINT_BY_VALUE = koffi.pack({ x: 'int32', y: 'int32' });
@@ -84,7 +84,7 @@ const VK_MENU = 0x12;
 const KEYEVENTF_KEYUP = 0x0002;
 const MAX_ENUM = 4096;
 
-// Cua so khong phai "ung dung" - khong dua vao danh sach window_list
+// These are not application windows, so they stay out of window_list.
 const SHELL_CLASSES = new Set([
   'progman',
   'workerw',
@@ -194,7 +194,7 @@ export function getForegroundWindow() {
   return toNum(api.getForegroundWindow());
 }
 
-/** Kich thuoc man hinh chinh (GetSystemMetrics SM_CXSCREEN/SM_CYSCREEN). */
+/** Primary screen size (GetSystemMetrics SM_CXSCREEN / SM_CYSCREEN). */
 export function getScreenSize() {
   try {
     const width = api.getSystemMetrics(0);
@@ -206,8 +206,8 @@ export function getScreenSize() {
 }
 
 /**
- * Cua so co dang che toan man hinh khong (fullscreen video/game/borderless).
- * Luc do UI binh thuong (thanh dia chi, tab, thanh tim kiem) KHONG ton tai tren man hinh.
+ * True when the window covers the whole screen (fullscreen video, game, or borderless).
+ * Ordinary UI (address bar, tabs, search box) is not on screen in that state.
  */
 export function isFullscreen(hwnd) {
   try {
@@ -237,7 +237,7 @@ export function isWindowMinimized(hwnd) {
   if (!h || !api.isWindow(h)) return false;
   if (api.isIconic(h)) return true;
   const r = getWindowRect(h);
-  // Window bi minimize/ra man hinh ao co rect -32000,-32000
+  // A minimized window, or one on a virtual screen, has rect -32000,-32000.
   return !!r && r.left <= -30000 && r.top <= -30000;
 }
 
@@ -351,7 +351,7 @@ export function findWindows(opts = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Tim cua so
+// Find a window
 // ---------------------------------------------------------------------------
 function normalizeTarget(target) {
   if (target === null || target === undefined) return {};
@@ -439,11 +439,11 @@ function queryMatches(w, q, zOrder) {
 }
 
 /**
- * Tim cua so.
- * target co the la: so hwnd, chuoi, hoac object
+ * Find a window.
+ * target may be an hwnd number, a string, or an object:
  *   { hwnd } | { pid } | { process:'explorer.exe' } | { title:'...' }
  *   | { titleContains:'...' } | { target:'File Explorer' }
- * Tra ve: { window, candidates } - khong tim thay thi window = null
+ * Returns { window, candidates }. window is null when nothing matches.
  */
 export function findWindow(target) {
   const q = normalizeTarget(target);
@@ -473,12 +473,12 @@ export function findWindow(target) {
 export function restoreWindow(target) {
   const { window: w, candidates } = findWindow(target);
   if (!w) {
-    return { success: false, reason: 'không tìm thấy cửa sổ để restore', candidates };
+    return { success: false, reason: 'no window found to restore', candidates };
   }
   const h = BigInt(w.hwnd);
   const wasMinimized = w.minimized;
   if (wasMinimized) {
-    log(`Restoring window: ${w.title || '(không có title)'} hwnd=${w.hwnd}`);
+    log(`Restoring window: ${w.title || '(no title)'} hwnd=${w.hwnd}`);
     api.showWindow(h, SW_RESTORE);
   }
   return { success: true, wasMinimized, window: w, candidates };
@@ -487,15 +487,15 @@ export function restoreWindow(target) {
 export function minimizeWindow(target) {
   const { window: w, candidates } = findWindow(target);
   if (!w) {
-    return { success: false, reason: 'không tìm thấy cửa sổ để minimize', candidates };
+    return { success: false, reason: 'no window found to minimize', candidates };
   }
-  log(`Minimizing: ${w.title || '(không có title)'} hwnd=${w.hwnd}`);
+  log(`Minimizing: ${w.title || '(no title)'} hwnd=${w.hwnd}`);
   api.showWindow(BigInt(w.hwnd), SW_MINIMIZE);
   return { success: true, window: w, candidates };
 }
 
 // ---------------------------------------------------------------------------
-// Activate window + verify foreground (co gioi han retry, khong lap vo han)
+// Activate a window and verify the foreground (bounded retries, no infinite loop).
 // ---------------------------------------------------------------------------
 function verifyForeground(hwnd, waitedMs) {
   const fg = getForegroundWindow();
@@ -518,7 +518,7 @@ async function forceForeground(hwnd) {
     api.setForegroundWindow(h);
     await sleep(120);
     if (verifyForeground(h)) return true;
-    // Thu nua bang cach nhan ALT de thao foreground lock (Windows tra quyen focus)
+    // Press ALT once to release the foreground lock (Windows then allows focus).
     api.keybdEvent(VK_MENU, 0, 0, 0);
     api.keybdEvent(VK_MENU, 0, KEYEVENTF_KEYUP, 0);
     await sleep(40);
@@ -533,7 +533,7 @@ async function forceForeground(hwnd) {
       try {
         api.attachThreadInput(myTid, fgTid, 0);
       } catch {
-        /* detach that bai - bo qua */
+        /* detach failed - ignore */
       }
     }
   }
@@ -544,17 +544,17 @@ export async function activateWindow(target, opts = {}) {
   const { window: w, candidates } = findWindow(target);
 
   if (!w) {
-    const reason = `không tìm thấy cửa sổ phù hợp với target=${JSON.stringify(target)}`;
+    const reason = `no window matched target=${JSON.stringify(target)}`;
     log(`Activation FAILED - ${reason}`);
     return { success: false, reason, hwnd: 0, foreground: false, candidates: [] };
   }
 
-  log(`Activating: "${w.title || '(không có title)'}" hwnd=${w.hwnd} pid=${w.pid} (${w.processName})`);
+  log(`Activating: "${w.title || '(no title)'}" hwnd=${w.hwnd} pid=${w.pid} (${w.processName})`);
 
   const h = BigInt(w.hwnd);
   if (!api.isWindow(h)) {
-    log('Activation FAILED - hwnd không hợp lệ');
-    return { success: false, reason: 'hwnd không hợp lệ', hwnd: w.hwnd, foreground: false };
+    log('Activation FAILED - invalid hwnd');
+    return { success: false, reason: 'invalid hwnd', hwnd: w.hwnd, foreground: false };
   }
 
   const fgBefore = getForegroundWindow();
@@ -594,11 +594,11 @@ export async function activateWindow(target, opts = {}) {
       };
     }
 
-    log(`SetForegroundWindow -> chưa về foreground (lần ${attempt}/${retries})`);
+    log(`SetForegroundWindow -> not in the foreground yet (attempt ${attempt}/${retries})`);
     const forced = await forceForeground(w.hwnd);
     if (forced) {
       const info = describeWindow(w.hwnd);
-      log('Foreground verification -> OK (sau force)');
+      log('Foreground verification -> OK (after force)');
       log(`Window rect: ${info.rect.left},${info.rect.top} -> ${info.rect.right},${info.rect.bottom}`);
       return {
         success: true,
@@ -616,7 +616,7 @@ export async function activateWindow(target, opts = {}) {
   }
 
   const fgNow = describeWindow(getForegroundWindow());
-  const reason = `foreground verification failed (foreground hiện tại: ${fgNow ? `${fgNow.title || fgNow.processName}` : 'không rõ'})`;
+  const reason = `foreground verification failed (current foreground: ${fgNow ? `${fgNow.title || fgNow.processName}` : 'unknown'})`;
   log('Activation FAILED');
   log(`reason=${reason}`);
   return {
@@ -636,13 +636,13 @@ export async function activateWindow(target, opts = {}) {
 export async function showDesktop() {
   const fgBefore = getForegroundWindow();
   const windows = findWindows().filter((w) => !w.minimized);
-  log(`Show desktop: minimize ${windows.length} cửa sổ đang mở`);
+  log(`Show desktop: minimize ${windows.length} open window(s)`);
 
   for (const w of windows) {
     try {
       api.showWindow(BigInt(w.hwnd), SW_MINIMIZE);
     } catch {
-      /* bo qua cua so khong minimize duoc */
+      /* ignore a window that cannot be minimized */
     }
   }
   await sleep(400);
@@ -654,18 +654,18 @@ export async function showDesktop() {
     DESKTOP_CLASSES.has(fgClass) ||
     (fgBefore ? isWindowMinimized(fgBefore) : false);
 
-  log(desktopUp ? 'Show desktop -> OK' : `Show desktop -> chỉ còn ${remain.length} cửa sổ chưa minimize`);
+  log(desktopUp ? 'Show desktop -> OK' : `Show desktop -> ${remain.length} window(s) still visible`);
   return {
     success: desktopUp,
     minimized: windows.length,
     remaining: remain.length,
     foregroundClass: fgClass,
-    reason: desktopUp ? undefined : `${remain.length} cửa sổ vẫn đang hiển thị`
+    reason: desktopUp ? undefined : `${remain.length} window(s) are still visible`
   };
 }
 
 // ---------------------------------------------------------------------------
-// Taskbar (chi la FALLBACK - khong phai phuong phap chinh)
+// Taskbar (fallback only, not the primary method).
 // ---------------------------------------------------------------------------
 export function getTaskbarRect() {
   const h = api.findWindowW('Shell_TrayWnd', null);
@@ -699,7 +699,7 @@ export function isDesktopAt(x, y) {
 }
 
 // ---------------------------------------------------------------------------
-// Format danh sach cho log / prompt
+// Format the list for the log and the prompt.
 // ---------------------------------------------------------------------------
 export function formatWindowList(opts = {}) {
   const max = Number(opts.max ?? 15);
@@ -714,11 +714,11 @@ export function formatWindowList(opts = {}) {
         (w.rect ? ` rect=(${w.rect.left},${w.rect.top})-(${w.rect.right},${w.rect.bottom})` : '')
     );
   });
-  if (list.length > max) lines.push(`   ... (con ${list.length - max} cua so khac)`);
+  if (list.length > max) lines.push(`   ... (${list.length - max} more windows)`);
 
   const fgw = describeWindow(fg);
   lines.push('FOREGROUND:');
-  lines.push(`   ${fgw ? fgw.title || fgw.className || '(không có title)' : '(không rõ)'}`);
+  lines.push(`   ${fgw ? fgw.title || fgw.className || '(no title)' : '(unknown)'}`);
   lines.push(`   hwnd=${fgw ? fgw.hwnd : 0} pid=${fgw ? fgw.pid : 0} proc=${fgw ? fgw.processName : ''}`);
   return lines.join('\n');
 }

@@ -1,8 +1,8 @@
-// tloop: moi 2 phut chup man hinh 1 lan -> vision chot "con trong game?" ->
-// neu CO -> spam click giua cua so Roblox + bam T moi 0.5s den chu ky sau;
-// neu Roblox mat/crash -> tu relaunch qua protocol Froststrap; khong join duoc placeId -> vision xem Continue.
-// Chay:   node launch-tloop.mjs  (hoac npm run tloop)
-// Dung:   npm run tloop:stop     (tao file stop-tloop.flag)
+// tloop: every 2 minutes take one screenshot -> the vision model decides "still in game?" ->
+// if YES -> spam a click in the middle of the Roblox window + press T every 0.5s until the next cycle;
+// if Roblox is gone or crashed -> relaunch through the Froststrap protocol; if placeId cannot be joined -> the model looks for Continue.
+// Run:    node launch-tloop.mjs  (or npm run tloop)
+// Stop:   npm run tloop:stop     (creates stop-tloop.flag)
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -40,7 +40,7 @@ function log(msg) {
   try {
     fs.appendFileSync(LOG_FILE, line + '\n');
   } catch {
-    /* bo qua */
+    /* ignore */
   }
 }
 const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -83,12 +83,12 @@ async function checkFailSafe(state) {
   if (inCorner) {
     if (!state.cornerSince) {
       state.cornerSince = Date.now();
-      log('!! Chuot o goc man hinh - giu yen de DUNG khẩn cap...');
+      log('!! Pointer is in the screen corner - hold still to STOP...');
     } else if (Date.now() - state.cornerSince >= config.failSafeCornerMs) {
       return true;
     }
   } else {
-    if (state.cornerSince) log('Da roi goc man hinh, tiep tuc.');
+    if (state.cornerSince) log('Left the screen corner, continuing.');
     state.cornerSince = null;
   }
   return false;
@@ -103,16 +103,16 @@ async function calibrate(img) {
 function foregroundText() {
   try {
     const f = wm.describeForeground();
-    if (!f) return '(khong lay duoc foreground)';
+    if (!f) return '(could not read the foreground)';
     return [
-      `title=${f.title || '(khong co title)'}`,
+      `title=${f.title || '(no title)'}`,
       `hwnd=${f.hwnd} pid=${f.pid} proc=${f.processName || '?'} visible=${f.visible} minimized=${f.minimized}`,
       f.rect ? `rect=(${f.rect.left},${f.rect.top})-(${f.rect.right},${f.rect.bottom})` : ''
     ]
       .filter(Boolean)
       .join(' | ');
   } catch (err) {
-    return `(loi doc foreground: ${err.message})`;
+    return `(failed to read the foreground: ${err.message})`;
   }
 }
 
@@ -120,11 +120,11 @@ function windowListText() {
   try {
     return wm.formatWindowList({ max: 12 });
   } catch (err) {
-    return `(loi liet ke cua so: ${err.message})`;
+    return `(failed to list windows: ${err.message})`;
   }
 }
 
-// Chay ps1 relaunch, bat stdout de biet placeId. Tra ve placeId string hoac null.
+// Run the relaunch script and capture stdout for the placeId. Returns a placeId string or null.
 function runRelaunch(reason) {
   log(`[RELAUNCH] ${reason}`);
   return new Promise((resolve) => {
@@ -152,7 +152,7 @@ function runRelaunch(reason) {
       try {
         p.kill();
       } catch {
-        /* bo qua */
+        /* ignore */
       }
       log('[RELAUNCH] qua 100s, kill ps1');
     }, 100000);
@@ -166,7 +166,7 @@ function runRelaunch(reason) {
       finish(m ? m[1] : null);
     });
     p.on('error', (err) => {
-      log(`[RELAUNCH] loi spawn: ${err.message}`);
+      log(`[RELAUNCH] spawn failed: ${err.message}`);
       finish(null);
     });
   });
@@ -175,34 +175,34 @@ function runRelaunch(reason) {
 function relaunchHint(placeId) {
   if (placeId) {
     return (
-      `\nHINH: he thong vua tu dong relaunch Roblox bang placeId ${placeId}. ` +
-      `Neu dang loading -> wait. Neu van o MENU -> dung TRANG THAI 3 (xem Continue, click Play/Continue). ` +
-      `KHONG chay tloop-relaunch.ps1 nua trong chu ky nay.`
+      `\nIMAGE: the system just relaunched Roblox with placeId ${placeId}. ` +
+      `If it is loading -> wait. If it is still on the MENU -> use STATE 3 (find Continue, click Play/Continue). ` +
+      `Do NOT run tloop-relaunch.ps1 again this cycle.`
     );
   }
   return (
-    '\nHINH: he thong vua tu dong mo lai Roblox (khong co placeId) -> xem Continue de vao lai game. ' +
-    'Neu dang loading -> wait. Neu o MENU -> TRANG THAI 3 (click Continue/Play cua game vua choi). ' +
-    'KHONG chay tloop-relaunch.ps1 nua trong chu ky nay.'
+    '\nIMAGE: the system just reopened Roblox (no placeId) -> use Continue to rejoin. ' +
+    'If it is loading -> wait. If it is on the MENU -> STATE 3 (click Continue/Play for the game just played). ' +
+    'Do NOT run tloop-relaunch.ps1 again this cycle.'
   );
 }
 
 async function spamLoop(deadline, opts, state) {
   if (config.dryRun) {
-    log('[SPAM] dry-run -> bo qua spam click+T');
+    log('[SPAM] dry-run -> skipped click+T spam');
     return 'dry';
   }
   const backend = await resolveBackend();
   let ticks = 0;
   let fails = 0;
-  log(`[SPAM] bat dau, moi ${opts.spamMs}ms (click giua cua so + T), den deadline...`);
+  log(`[SPAM] start, every ${opts.spamMs}ms (click the window center + T), until the deadline...`);
   while (Date.now() < deadline) {
     if (stopRequested()) return 'stop';
     if (await checkFailSafe(state)) return 'corner';
 
     const win = findRoblox();
     if (!win) {
-      log('[SPAM] mat cua so Roblox -> dung spam, chu ky sau tu relaunch');
+      log('[SPAM] Roblox window is gone -> stop spam, the next cycle will relaunch');
       return 'no-window';
     }
 
@@ -211,7 +211,7 @@ async function spamLoop(deadline, opts, state) {
       const res = await wm.activateWindow({ hwnd: win.hwnd }, { retries: 2 });
       if (!res.success) {
         fails++;
-        log(`[SPAM] activate that bai (${fails}/5): ${res.reason}`);
+        log(`[SPAM] activate failed (${fails}/5): ${res.reason}`);
         if (fails >= 5) return 'activate-fail';
         await sleepMs(400);
         continue;
@@ -228,7 +228,7 @@ async function spamLoop(deadline, opts, state) {
     const cx = Math.round((rect.left + rect.right) / 2);
     const cy = Math.round((rect.top + rect.bottom) / 2);
 
-    // khong click khi tam cua so bi cua so khac che
+    // do not click when the window center is covered by another window
     const at = wm.windowAtPoint(cx, cy);
     if (at && at.pid !== win.pid) {
       const res = await wm.activateWindow({ hwnd: win.hwnd }, { retries: 1 });
@@ -236,7 +236,7 @@ async function spamLoop(deadline, opts, state) {
       const at2 = wm.windowAtPoint(cx, cy);
       if (at2 && at2.pid !== win.pid) {
         await sleepMs(400);
-        continue; // van bi che -> bo nhip, KHONG click vua cua so khac
+        continue; // still covered -> skip this tick, do NOT click the other window
       }
     }
 
@@ -246,13 +246,13 @@ async function spamLoop(deadline, opts, state) {
       await backend.click('left');
       await backend.pressKey(resolveKeyName('T'));
       ticks++;
-      if (ticks % 60 === 0) log(`[SPAM] ${ticks} nhip...`);
+      if (ticks % 60 === 0) log(`[SPAM] ${ticks} ticks...`);
     } catch (err) {
-      log(`[SPAM] loi input: ${err.message || err}`);
+      log(`[SPAM] input error: ${err.message || err}`);
     }
     await sleepMs(opts.spamMs);
   }
-  log(`[SPAM] ket thuc sau ${ticks} nhip`);
+  log(`[SPAM] finished after ${ticks} ticks`);
   return 'deadline';
 }
 
@@ -261,7 +261,7 @@ async function main() {
   try {
     fs.rmSync(STOP_FILE, { force: true });
   } catch {
-    /* bo qua */
+    /* ignore */
   }
 
   log('=== tloop bat dau ===');
@@ -286,7 +286,7 @@ async function main() {
 
   let stop = false;
   const onSignal = (sig) => {
-    log(`[${sig}] dung theo yeu cau...`);
+    log(`[${sig}] stopping as requested...`);
     stop = true;
   };
   process.on('SIGINT', onSignal);
@@ -305,27 +305,27 @@ async function main() {
 
   while (!stop && !stopRequested()) {
     try {
-      // dam bao >= 2 phut giua 2 lan chup anh
+      // keep at least 2 minutes between screenshots
       if (state.lastShotAt) {
         const gap = state.lastShotAt + opts.interval - Date.now();
         if (gap > 0) await sleepMs(gap);
       }
       if (stop || stopRequested()) break;
       if (await checkFailSafe(state)) {
-        log('*** DUNG KHAN CAP: chuot o goc man hinh ***');
+        log('*** EMERGENCY STOP: pointer is in the screen corner ***');
         break;
       }
 
-      // crash check + safety net cho menu bi mac
+      // crash check, plus a safety net when the menu stays stuck
       let win = findRoblox();
       if (!win) {
         state.lastRelaunchAt = Date.now();
-        const pid = await runRelaunch('mat cua so Roblox (crash?)');
+        const pid = await runRelaunch('Roblox window is missing (crash?)');
         state.relaunchHint = relaunchHint(pid);
         state.staleMenu = 0;
       } else {
         if (state.robloxPid && win.pid !== state.robloxPid) {
-          log(`Roblox pid doi ${state.robloxPid} -> ${win.pid} (da khoi lai gan day)`);
+          log(`Roblox pid changed ${state.robloxPid} -> ${win.pid} (relaunched recently)`);
           state.lastRelaunchAt = Date.now();
           state.staleMenu = 0;
           state.relaunchHint = '';
@@ -333,13 +333,13 @@ async function main() {
         state.robloxPid = win.pid;
         const oldEnough = Date.now() - state.lastRelaunchAt > 150000;
         if (state.staleMenu >= 3 && oldEnough) {
-          const pid = await runRelaunch(`menu bi mac ${state.staleMenu} chu ky lien tiep`);
+          const pid = await runRelaunch(`menu stuck for ${state.staleMenu} cycles in a row`);
           state.relaunchHint = relaunchHint(pid);
           state.lastRelaunchAt = Date.now();
         }
       }
 
-      // chup anh (dinh ky 2 phut)
+      // screenshot (every 2 minutes)
       state.step++;
       const img = await takeScreenShot();
       state.lastShotAt = Date.now();
@@ -348,7 +348,7 @@ async function main() {
       if (state.step === 1) await calibrate(img);
       acknowledgeReobserve();
 
-      // vision
+      // vision call
       let inGame = false;
       try {
         const { actions, raw, durationMs, sessionId } = await ask({
@@ -372,7 +372,7 @@ async function main() {
           }
           session.calls++;
           if (session.calls >= config.rotateAfterCalls) {
-            log(`dat ${config.rotateAfterCalls} luot -> xoay session`);
+            log(`reached ${config.rotateAfterCalls} calls -> rotate session`);
             await deleteSession(session.sessionId);
             session.sessionId = null;
             session.calls = 0;
@@ -384,7 +384,7 @@ async function main() {
         inGame = actions.some((a) => a.action === 'done' || a.action === 'finish');
         const rest = actions.filter((a) => a.action !== 'done' && a.action !== 'finish');
         if (rest.length) {
-          log(`thuc thi ${rest.length} hanh dong: ${JSON.stringify(rest)}`);
+          log(`running ${rest.length} action(s): ${JSON.stringify(rest)}`);
           const result = await executeActions(rest);
           state.lastAction = JSON.stringify(rest);
           if (result.blocked) {
@@ -395,25 +395,25 @@ async function main() {
           state.lastAction = '[done: in game]';
         }
       } catch (err) {
-        log(`LLM loi: ${err.message || err}`);
+        log(`LLM error: ${err.message || err}`);
       }
 
-      // so do menu cu
+      // count how many cycles the menu has stayed up
       if (inGame) {
         state.staleMenu = 0;
         state.relaunchHint = '';
-        log('[CYCLE] TRONG GAME -> bat spam click+T');
+        log('[CYCLE] IN GAME -> start click+T spam');
         const r = await spamLoop(deadline, opts, state);
         if (r === 'corner') {
-          log('*** DUNG KHAN CAP: chuot o goc man hinh ***');
+          log('*** EMERGENCY STOP: pointer is in the screen corner ***');
           break;
         }
         if (r === 'no-window' || r === 'activate-fail') state.lastRelaunchAt = Date.now();
       } else {
         state.staleMenu++;
         log(
-          `[CYCLE] khong trong game (lan ${state.staleMenu}) -> cho den chu ky sau, khong spam` +
-            (state.relaunchHint ? ' (co HINH cho LLM xem Continue)' : '')
+          `[CYCLE] not in game (attempt ${state.staleMenu}) -> wait for the next cycle, no spam` +
+            (state.relaunchHint ? ' (screenshot is ready for the model to look for Continue)' : '')
         );
         let corner = false;
         while (Date.now() < deadline && !stop && !stopRequested()) {
@@ -424,12 +424,12 @@ async function main() {
           await sleepMs(500);
         }
         if (corner) {
-          log('*** DUNG KHAN CAP: chuot o goc man hinh ***');
+          log('*** EMERGENCY STOP: pointer is in the screen corner ***');
           break;
         }
       }
     } catch (error) {
-      log(`loi vong lap: ${error.message || error}`);
+      log(`loop error: ${error.message || error}`);
       await sleepMs(2000);
     }
   }
@@ -437,7 +437,7 @@ async function main() {
   try {
     fs.rmSync(STOP_FILE, { force: true });
   } catch {
-    /* bo qua */
+    /* ignore */
   }
   log(`=== tloop ket thuc sau ${state.step} chu ky ===`);
 }

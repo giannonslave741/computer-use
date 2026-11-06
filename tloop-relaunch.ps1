@@ -1,6 +1,6 @@
-# tloop-relaunch.ps1 - doc placeId game vua choi tu log, dong Roblox cu, mo lai qua protocol Froststrap.
-# Exit code: 0 = da mo lai bang placeId, 2 = khong co placeId (vision fallback - xem Continue).
-# Chi ASCII trong file nay (PowerShell 5.1 doc ANSI neu khong co BOM).
+# tloop-relaunch.ps1 - read the last played placeId from the log, close the old Roblox, reopen it through the Froststrap protocol.
+# Exit code: 0 = reopened with a placeId, 2 = no placeId (vision fallback - look for Continue).
+# ASCII only in this file (PowerShell 5.1 reads ANSI when there is no BOM).
 
 $logDir = Join-Path $env:LOCALAPPDATA 'Roblox\logs'
 $placeId = $null

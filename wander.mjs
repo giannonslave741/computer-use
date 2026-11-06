@@ -1,6 +1,6 @@
-// Wander mode: di chuyen lung tung trong game lien tuc, KHONG chup anh, KHONG goi AI.
-// Chay:   npm run wander
-// Dung:   npm run wander:stop   (tao file stop-wander.flag)
+// Wander mode: keep moving around in the game, with no screenshots and no AI calls.
+// Run:    npm run wander
+// Stop:   npm run wander:stop   (creates stop-wander.flag)
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -18,7 +18,7 @@ function argNum(name, def) {
   if (i >= 0 && argv[i + 1] !== undefined) return Number(argv[i + 1]);
   return def;
 }
-const MAX_SECONDS = argNum('--seconds', 0); // 0 = chay den khi stop
+const MAX_SECONDS = argNum('--seconds', 0); // 0 = run until stop
 const TARGET = argv.includes('--target') ? argv[argv.indexOf('--target') + 1] : 'Roblox';
 
 const now = () => new Date().toISOString().slice(11, 19);
@@ -28,7 +28,7 @@ function log(msg) {
   try {
     fs.appendFileSync(LOG_FILE, line + '\n');
   } catch {
-    /* bo qua */
+    /* ignore */
   }
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -45,14 +45,14 @@ async function ensureForeground(backend, state) {
   const fg = wm.getForegroundWindow();
   if (fg === state.hwnd && wm.isWindow(state.hwnd)) return true;
 
-  log(`Foreground khong phai ${TARGET} (fg=${fg}) -> dang activate...`);
+  log(`Foreground is not ${TARGET} (fg=${fg}) -> activating...`);
   const res = await wm.activateWindow({ hwnd: state.hwnd }, { retries: 2 });
   if (res.success) {
     log(`Activate OK hwnd=${res.hwnd}`);
     await sleep(300);
     return true;
   }
-  log(`Activate that bai: ${res.reason}`);
+  log(`Activate failed: ${res.reason}`);
   return false;
 }
 
@@ -67,13 +67,13 @@ async function main() {
   try {
     fs.rmSync(STOP_FILE, { force: true });
   } catch {
-    /* bo qua */
+    /* ignore */
   }
 
   const found = wm.findWindow({ target: TARGET });
   if (!found.window) {
     const list = wm.formatWindowList({ max: 10 });
-    log(`KHONG TIM THAY cua so "${TARGET}" -> dung. Danh sach:\n${list}`);
+    log(`Window "${TARGET}" was not found -> stop. List:\n${list}`);
     process.exit(1);
   }
 
@@ -85,7 +85,7 @@ async function main() {
   log(`Backend: ${backend.name}`);
 
   if (!(await ensureForeground(backend, state))) {
-    log('Khong dua duoc cua so len truoc -> dung (khong bam phim mu).');
+    log('Could not bring the window to the front -> stop (will not press keys blindly).');
     process.exit(1);
   }
 
@@ -94,18 +94,18 @@ async function main() {
   let turns = 0;
   let rechecks = 0;
 
-  log(`Bat dau wander${MAX_SECONDS ? ` (toi da ${MAX_SECONDS}s)` : ' (lien tuc, dung bang npm run wander:stop)'}...`);
+  log(`Starting wander${MAX_SECONDS ? ` (max ${MAX_SECONDS}s)` : ' (runs until npm run wander:stop)'}...`);
 
   while (!stopRequested()) {
     if (MAX_SECONDS && (Date.now() - started) / 1000 >= MAX_SECONDS) {
-      log('Dat gioi han thoi gian -> dung.');
+      log('Time limit reached -> stop.');
       break;
     }
 
     if (!(await ensureForeground(backend, state))) {
       rechecks++;
       if (rechecks > 5) {
-        log('That bai qua nhieu lan -> dung de tranh bam phim vao cua so khac.');
+        log('Too many failures -> stop so keys are not sent to another window.');
         break;
       }
       await sleep(800);
@@ -116,7 +116,7 @@ async function main() {
     const roll = Math.random();
 
     if (roll < 0.55) {
-      // 1 huong
+      // one direction
       const key = pick(DIRS);
       const ms = rnd(400, 1700);
       await backend.keyDown(resolveKeyName(key));
@@ -125,7 +125,7 @@ async function main() {
       moves++;
       log(`hold ${key} ${ms}ms`);
     } else if (roll < 0.78) {
-      // 2 huong ket hop
+      // two directions together
       const k1 = pick(DIRS);
       let k2 = pick(DIRS);
       if (k2 === k1) k2 = k1 === 'W' ? 'A' : 'W';
@@ -138,43 +138,43 @@ async function main() {
       moves++;
       log(`hold ${k1}+${k2} ${ms}ms`);
     } else if (roll < 0.9) {
-      // nhay
+      // jump
       await backend.keyDown(resolveKeyName('SPACE'));
       await sleep(rnd(120, 320));
       await backend.keyUp(resolveKeyName('SPACE'));
       moves++;
       log('jump');
     } else {
-      // quay camera
+      // turn the camera
       try {
         const cur = await mouse.getPosition();
         await turnCamera(backend, cur);
         turns++;
         log('turn camera');
       } catch (err) {
-        log(`turn loi: ${err.message}`);
+        log(`turn error: ${err.message}`);
       }
     }
 
     if (Math.random() < 0.25) await sleep(rnd(250, 1100));
     if (moves > 0 && moves % 25 === 0) {
-      log(`--- da di ${moves} nhip, quay ${turns} lan, ${(Date.now() - started) / 1000 | 0}s ---`);
+      log(`--- ${moves} moves, ${turns} camera turns, ${(Date.now() - started) / 1000 | 0}s ---`);
     }
   }
 
-  // dam bao khong giu phim
+  // make sure no key stays held
   for (const k of ['W', 'A', 'S', 'D', 'SPACE']) {
     try {
       await backend.keyUp(resolveKeyName(k));
     } catch {
-      /* bo qua */
+      /* ignore */
     }
   }
-  log(`DUNG. ${moves} nhip di chuyen, ${turns} lan quay camera sau ${((Date.now() - started) / 1000) | 0}s`);
+  log(`STOP. ${moves} moves, ${turns} camera turns after ${((Date.now() - started) / 1000) | 0}s`);
   try {
     fs.rmSync(STOP_FILE, { force: true });
   } catch {
-    /* bo qua */
+    /* ignore */
   }
   process.exit(0);
 }

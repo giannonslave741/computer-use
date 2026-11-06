@@ -1,18 +1,18 @@
-// analyze.js — Phân tích TỰ ĐỘNG bằng pixel (không phải suy đoán của model).
+// analyze.js — Automatic pixel analysis (not the model's guess).
 //
-// Mục tiêu: cho model biết kết quả THẬT của chuỗi hành động vừa chạy, vì model VL
-// miễn phí nhắm tọa độ kém và thường không nhận ra click của mình không trúng gì.
+// Tell the model what the last action chain actually did. Free vision models aim poorly
+// and often do not notice that their click hit nothing.
 //
-// 3 tín hiệu không thể sai:
-//   1. Màn hình có thay đổi sau chuỗi không + vùng nào thay đổi  -> "click có tác dụng không"
-//   2. Điểm click có nằm trong cửa sổ foreground / trong màn hình không
-//   3. Con trỏ có THẬT SỰ nằm ở tọa độ đã click không            -> bắt lỗi mapping tọa độ
+// Three measurements:
+//   1. Did the screen change, and where
+//   2. Is the click point inside the foreground window and the screen
+//   3. Is the real cursor at the requested coordinate (catches a bad coordinate map)
 
 const CELL = 16;
-const SAMPLE = 4; // lấy 1 pixel mỗi 4 pixel trong ô -> 16 điểm/ô
-const DIFF_THRESHOLD = 10; // chênh trung bình RGB > 10 coi như ô đó đổi
+const SAMPLE = 4; // one pixel every 4 pixels in a cell -> 16 samples per cell
+const DIFF_THRESHOLD = 10; // average RGB delta above 10 counts as a changed cell
 
-/** So sánh 2 khung hình cùng kích thước. */
+/** Compare two frames of the same size. */
 export function diffFrames(a, b) {
   if (!a || !b || a.w !== b.w || a.h !== b.h) return null;
   const cols = Math.ceil(a.w / CELL);
@@ -59,21 +59,21 @@ export function diffFrames(a, b) {
 export function formatDiff(diff) {
   if (!diff) return '';
   if (diff.ratio < 0.004) {
-    return 'Màn hình SAU chuỗi: KHÔNG thay đổi gần như nào -> chuỗi vừa rồi KHÔNG làm được gì.';
+    return 'Screen AFTER the chain: almost unchanged -> the last chain did nothing.';
   }
   const pct = (diff.ratio * 100).toFixed(1);
   const b = diff.bbox;
   const where = b
-    ? ` (vùng đổi: (${b.x0},${b.y0})-(${b.x1},${b.y1}) — hãy nhìn đúng vùng đó để đánh giá)`
+    ? ` (changed region: (${b.x0},${b.y0})-(${b.x1},${b.y1}) — look at that region)`
     : '';
-  return `Màn hình SAU chuỗi: thay đổi ${pct}% màn hình${where}.`;
+  return `Screen AFTER the chain: ${pct}% of the screen changed${where}.`;
 }
 
 /**
- * Kiểm tra các điểm click/chuột.
+ * Check click and cursor points.
  * @param {Array<{x:number,y:number}>} points
  * @param {{rect?: {left,top,right,bottom}|null, width:number, height:number}} ctx
- * @returns {string[]} các cảnh báo (rỗng = ổn)
+ * @returns {string[]} warnings (empty means the points are fine)
  */
 export function checkPoints(points, ctx) {
   const out = [];
@@ -82,7 +82,7 @@ export function checkPoints(points, ctx) {
   for (const p of points) {
     if (!p || typeof p.x !== 'number' || typeof p.y !== 'number') continue;
     if (p.x < 0 || p.y < 0 || p.x >= width || p.y >= height) {
-      out.push(`ĐIỂM (${p.x},${p.y}) NẰM NGOÀI MÀN HÌNH ${width}x${height} -> click sẽ trượt.`);
+      out.push(`POINT (${p.x},${p.y}) IS OUTSIDE THE SCREEN ${width}x${height} -> the click will miss.`);
       continue;
     }
     if (
@@ -90,23 +90,23 @@ export function checkPoints(points, ctx) {
       (p.x < rect.left || p.x > rect.right || p.y < rect.top || p.y > rect.bottom)
     ) {
       out.push(
-        `ĐIỂM (${p.x},${p.y}) NẰM NGOÀI CỬA SỔ FOREGROUND ` +
+        `POINT (${p.x},${p.y}) IS OUTSIDE THE FOREGROUND WINDOW ` +
           `(rect ${rect.left},${rect.top} -> ${rect.right},${rect.bottom}) ` +
-          `-> không nhắm vào ứng dụng đích.`
+          `-> it does not hit the target application.`
       );
     }
   }
   return out;
 }
 
-/** Kiểm tra con trỏ có nằm đúng tọa độ đã click không (bắt lỗi mapping/đường bắn). */
+/** Check that the cursor is at the clicked coordinate (catches a bad coordinate map). */
 export function checkCursor(actual, expected) {
   if (!actual || !expected) return '';
   const d = Math.hypot(actual.x - expected.x, actual.y - expected.y);
   if (d <= 6) return '';
   return (
-    `CHUỘT THẬT ĐANG Ở (${Math.round(actual.x)},${Math.round(actual.y)}) chứ KHÔNG phải ` +
-    `(${expected.x},${expected.y}) mà bạn yêu cầu (lệch ${Math.round(d)}px) ` +
-    `-> tọa độ click không được bắn đúng, hãy chọn lại điểm theo số trên lưới.`
+    `ACTUAL CURSOR IS AT (${Math.round(actual.x)},${Math.round(actual.y)}), NOT ` +
+    `(${expected.x},${expected.y}) as requested (off by ${Math.round(d)}px) ` +
+    `-> the click did not land. Pick the point again from the grid numbers.`
   );
 }

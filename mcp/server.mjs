@@ -46,21 +46,21 @@ function windowTarget(args) {
   if (args.process) return { process: args.process };
   if (args.titleContains) return { titleContains: args.titleContains };
   if (args.target) return args.target;
-  throw new Error('Cần target, process, hwnd hoặc titleContains.');
+  throw new Error('Need target, process, hwnd, or titleContains.');
 }
 
 const windowFields = {
-  target: z.string().optional().describe('Tên cửa sổ, ví dụ "Google Chrome".'),
-  process: z.string().optional().describe('Tên file tiến trình, ví dụ chrome.exe.'),
-  hwnd: z.number().optional().describe('HWND đã biết.'),
-  titleContains: z.string().optional().describe('Một phần title cửa sổ.')
+  target: z.string().optional().describe('Window name, for example "Google Chrome".'),
+  process: z.string().optional().describe('Process file name, for example chrome.exe.'),
+  hwnd: z.number().optional().describe('Known HWND.'),
+  titleContains: z.string().optional().describe('Part of the window title.')
 };
 
 server.registerTool(
   'screenshot',
   {
     description:
-      'Chụp màn hình chính và trả ảnh JPEG. Gọi tool này sau window_activate, và trước click/type nếu cửa sổ vừa đổi. Tọa độ các tool sau là pixel trên ảnh này, góc trên-trái = 0,0.'
+      'Capture the primary screen and return a JPEG. Call this after window_activate, and before click or type if the window just changed. Later coordinates are pixels on this image. Top-left is 0,0.'
   },
   async () => {
     const img = await takeScreenShot();
@@ -88,7 +88,7 @@ server.registerTool(
 
 server.registerTool(
   'window_list',
-  { description: 'Liệt kê cửa sổ đang mở và cửa sổ foreground. Không gửi phím hay chuột.' },
+  { description: 'List open windows and the foreground window. Does not send keys or mouse input.' },
   async () => {
     return toolResult({ windows: wm.formatWindowList({ max: 15 }), foreground: foregroundBrief() });
   }
@@ -98,7 +98,7 @@ server.registerTool(
   'window_activate',
   {
     description:
-      'Đưa một cửa sổ lên foreground bằng Windows API. Sau tool này phải gọi screenshot trước khi click, type, press, hotkey, scroll hoặc drag.',
+      'Raise a window with the Windows API. After this tool, call screenshot before click, type, press, hotkey, scroll, or drag.',
     inputSchema: windowFields
   },
   async (args) => run({ action: 'window_activate', target: windowTarget(args) })
@@ -107,7 +107,7 @@ server.registerTool(
 server.registerTool(
   'click',
   {
-    description: 'Click một điểm. Tọa độ là pixel trên ảnh screenshot gần nhất.',
+    description: 'Click a point. Coordinates are pixels on the latest screenshot.',
     inputSchema: {
       x: z.number(),
       y: z.number(),
@@ -128,7 +128,7 @@ server.registerTool(
 server.registerTool(
   'move',
   {
-    description: 'Đưa chuột tới một điểm, không click.',
+    description: 'Move the pointer to a point without clicking.',
     inputSchema: { x: z.number(), y: z.number() }
   },
   async (args) => run({ action: 'move', x: args.x, y: args.y })
@@ -137,7 +137,7 @@ server.registerTool(
 server.registerTool(
   'type',
   {
-    description: 'Gõ chữ vào ô đang focus. Click vào ô đó trước.',
+    description: 'Type into the focused field. Click that field first.',
     inputSchema: { text: z.string() }
   },
   async (args) => run({ action: 'type', text: args.text })
@@ -146,7 +146,7 @@ server.registerTool(
 server.registerTool(
   'press',
   {
-    description: 'Bấm một phím, ví dụ ENTER, ESC, F11, W.',
+    description: 'Press one key, for example ENTER, ESC, F11, or W.',
     inputSchema: { key: z.string() }
   },
   async (args) => run({ action: 'press', key: args.key })
@@ -155,7 +155,7 @@ server.registerTool(
 server.registerTool(
   'hold',
   {
-    description: 'Giữ một phím trong ms mili-giây rồi nhả. Dùng cho di chuyển trong game.',
+    description: 'Hold a key for ms milliseconds, then release it. Used to move in a game.',
     inputSchema: { key: z.string(), ms: z.number() }
   },
   async (args) => run({ action: 'hold', key: args.key, ms: args.ms })
@@ -164,7 +164,7 @@ server.registerTool(
 server.registerTool(
   'hotkey',
   {
-    description: 'Bấm tổ hợp phím, ví dụ ["CTRL","L"].',
+    description: 'Press a key combination, for example ["CTRL","L"].',
     inputSchema: { keys: z.array(z.string()).min(1) }
   },
   async (args) => run({ action: 'hotkey', keys: args.keys })
@@ -173,7 +173,7 @@ server.registerTool(
 server.registerTool(
   'scroll',
   {
-    description: 'Cuộn tại vị trí chuột hiện tại.',
+    description: 'Scroll at the current pointer position.',
     inputSchema: {
       direction: z.enum(['up', 'down']),
       amount: z.number().optional()
@@ -185,7 +185,7 @@ server.registerTool(
 server.registerTool(
   'drag',
   {
-    description: 'Kéo từ điểm này tới điểm kia. Tọa độ là pixel trên ảnh screenshot.',
+    description: 'Drag from one point to another. Coordinates are pixels on the screenshot.',
     inputSchema: {
       fromX: z.number(),
       fromY: z.number(),

@@ -1,7 +1,7 @@
-// Phát hiện lặp hành động (stagnation): cùng một chuỗi action lặp lại >= limit lần
-// => agent đang click mù / lặp lại chiến lược không hiệu quả.
-// Tọa độ được làm tròn theo lưới 64px để "click 450,359" và "click 425,359"
-// (chênh vài pixel do model rung tay) vẫn bị coi là CÙNG chuỗi.
+// Detect a repeated action chain (stagnation): the same chain repeats >= limit times.
+// The agent is clicking blindly or repeating a strategy that is not working.
+// Coordinates are rounded to a 64px grid so "click 450,359" and "click 425,359"
+// (a few pixels of model jitter) still count as the SAME chain.
 
 const GRID = 64;
 const q = (v) => (typeof v === 'number' && Number.isFinite(v) ? Math.round(v / GRID) * GRID : v);
@@ -49,10 +49,10 @@ export function createStagnationDetector({ limit = 3 } = {}) {
     const s = get();
     if (!s.stagnating) return '';
     return (
-      `Chuỗi ${s.lastKey} đã lặp ${s.count} lần liên tiếp. ` +
-      'ĐANG BỊ LẶP - KHÔNG được gửi lại cùng chuỗi đó. ' +
-      'Phải đổi chiến lược: dùng window_list để xem cửa sổ, ' +
-      'window_activate đúng cửa sổ, chụp lại ảnh, rồi mới click tọa độ khác.'
+      `Chain ${s.lastKey} has repeated ${s.count} times in a row. ` +
+      'STUCK IN A LOOP - do NOT send that same chain again. ' +
+      'Change strategy: window_list, window_activate the right window, ' +
+      'take a new screenshot, then click a different coordinate.'
     );
   }
 

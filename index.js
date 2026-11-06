@@ -48,12 +48,12 @@ async function checkFailSafe(state) {
   if (inCorner) {
     if (!state.cornerSince) {
       state.cornerSince = Date.now();
-      console.log('    !! Phát hiện chuột ở góc màn hình — giữ yên để DỪNG khẩn cấp...');
+      console.log('    !! Pointer is in the screen corner — hold still to STOP...');
     } else if (Date.now() - state.cornerSince >= config.failSafeCornerMs) {
       return true;
     }
   } else {
-    if (state.cornerSince) console.log('    Đã rời góc màn hình, tiếp tục.');
+    if (state.cornerSince) console.log('    Pointer left the corner. Continuing.');
     state.cornerSince = null;
   }
   return false;
@@ -71,20 +71,20 @@ async function calibrate(img) {
 function foregroundText() {
   try {
     const f = wm.describeForeground();
-    if (!f) return '(không lấy được cửa sổ foreground)';
+    if (!f) return '(could not read the foreground window)';
     const fs = wm.isFullscreen(f.hwnd);
     const sc = wm.getScreenSize();
     return [
-      `title=${f.title || '(không có title)'}`,
+      `title=${f.title || '(no title)'}`,
       `hwnd=${f.hwnd} pid=${f.pid} proc=${f.processName || '?'} visible=${f.visible} minimized=${f.minimized}`,
       f.rect ? `rect=(${f.rect.left},${f.rect.top})-(${f.rect.right},${f.rect.bottom})` : '',
-      `fullscreen=${fs ? 'YES (đang che toàn màn hình, UI bình thường KHÔNG có trên màn hình)' : 'no'}`,
-      `man_hinh=${sc.width}x${sc.height} - toa do anh/click la toa do MAN HINH tuyet doi`
+      `fullscreen=${fs ? 'YES (covering the screen, normal UI is NOT on screen)' : 'no'}`,
+      `screen=${sc.width}x${sc.height} - image and click coordinates are absolute SCREEN pixels`
     ]
       .filter(Boolean)
       .join(' | ');
   } catch (err) {
-    return `(lỗi đọc foreground: ${err.message})`;
+    return `(foreground read failed: ${err.message})`;
   }
 }
 
@@ -92,11 +92,11 @@ function windowListText() {
   try {
     return wm.formatWindowList({ max: 12 });
   } catch (err) {
-    return `(lỗi liệt kê cửa sổ: ${err.message})`;
+    return `(window list failed: ${err.message})`;
   }
 }
 
-/** Rect của cửa sổ foreground (dùng để báo model khi click ra ngoài ứng dụng đích). */
+/** Foreground window rect. Used to warn the model when a click misses the target app. */
 function foregroundRect() {
   try {
     const f = wm.describeForeground();
@@ -113,29 +113,29 @@ async function runLoop(opts) {
     history: [],
     step: 0,
     session: null,
-    frame: null, // khung pixel PNG của bước trước (so sánh màn hình)
-    pendingMsgs: [], // cảnh báo pixel lấy ở bước trước, sẽ gửi model ở bước sau
-    lastPoint: null, // điểm click/move cần kiểm tra con trỏ có trúng không
+    frame: null, // previous PNG frame, used to compare the screen
+    pendingMsgs: [], // pixel warnings from the previous step, sent to the model next
+    lastPoint: null, // click or move point to check against the real cursor
     fgRect: null
   };
   const stagnation = createStagnationDetector({ limit: 3 });
   let lastBlocked = null;
   let lastBlockedReason = '';
 
-  console.log('=== Bắt đầu Computer Use Agent ===');
-  console.log(`Mục tiêu : ${opts.goal || '(chưa đặt)'}
-Bước tối đa: ${opts.steps || 'không giới hạn'} | Interval: ${opts.interval ?? config.intervalMs}ms
-Dry-run: ${config.dryRun} | Provider: ${config.provider} | Failsafe góc màn hình: ${config.failSafeCorner}
+  console.log('=== Computer Use Agent ===');
+  console.log(`Goal: ${opts.goal || '(none)'}
+Max steps: ${opts.steps || 'unlimited'} | Interval: ${opts.interval ?? config.intervalMs}ms
+Dry-run: ${config.dryRun} | Provider: ${config.provider} | Corner failsafe: ${config.failSafeCorner}
 `);
   if (config.provider === 'openai' && String(config.model).startsWith('opencode/')) {
-    console.log('Model hiện là id của CLI. Với --provider openai hãy đặt --model theo endpoint.\n');
+    console.log('The model is still a CLI id. With --provider openai, set --model to the endpoint model.\n');
   }
-  if (config.dryRun) console.log('*** CHẾ ĐỘ DRY-RUN: chỉ in hành động, không click/gõ ***\n');
+  if (config.dryRun) console.log('*** DRY-RUN: print actions, do not click or type ***\n');
 
   resetWindowGuard();
 
   if (!config.dryRun) {
-    console.log('[0] Khởi tạo backend bắn lệnh...');
+    console.log('[0] Starting the input backend...');
     await resolveBackend();
     console.log('');
   }
@@ -144,7 +144,7 @@ Dry-run: ${config.dryRun} | Provider: ${config.provider} | Failsafe góc màn h�
   if (config.provider === 'opencode') {
     state.session = loadSessionState();
     console.log(
-      `Session dùng chung: ${state.session.sessionId || '(chưa có, sẽ tạo)'} | lượt gọi: ${state.session.calls}\n`
+      `Shared session: ${state.session.sessionId || '(none yet, one will be created)'} | calls: ${state.session.calls}\n`
     );
     if (config.continueSession) await cleanupCuaSessions(state.session.sessionId);
   } else {
@@ -153,7 +153,7 @@ Dry-run: ${config.dryRun} | Provider: ${config.provider} | Failsafe góc màn h�
 
   let stop = false;
   const onSignal = (sig) => {
-    console.log(`\n[${sig}] Dừng khẩn cấp theo yêu cầu người dùng...`);
+    console.log(`\n[${sig}] Stopping because the user asked...`);
     stop = true;
   };
   process.on('SIGINT', onSignal);
@@ -163,14 +163,14 @@ Dry-run: ${config.dryRun} | Provider: ${config.provider} | Failsafe góc màn h�
     state.step++;
     try {
       if (await checkFailSafe(state)) {
-        console.log('\n*** DỪNG KHẨN CẤP: chuột ở góc màn hình ***');
+        console.log('\n*** EMERGENCY STOP: pointer is in the screen corner ***');
         break;
       }
 
-      console.log(`\n[1] Chụp màn hình (bước ${state.step})...`);
+      console.log(`\n[1] Screenshot (step ${state.step})...`);
 
-      // PNG gốc -> phân tích pixel + (tuỳ chọn) vẽ lưới. JPG nhẹ -> gửi model.
-      // Bắt buộc tách: PNG 2.8MB làm chậm ~19s/bước khi upload, JPG 212KB thì không.
+      // Raw PNG is for pixel analysis and an optional grid. A small JPG goes to the model.
+      // Keep them separate: a 2.8MB PNG added about 19s per step; a 212KB JPG does not.
       const needPixels = config.pixelAnalysis || config.gridOverlay;
       const rawShot = needPixels ? await takeScreenShot({ format: 'png' }) : null;
       const prep = rawShot
@@ -187,14 +187,14 @@ Dry-run: ${config.dryRun} | Provider: ${config.provider} | Failsafe góc màn h�
       } else {
         img = { ...(await takeScreenShot()), grid: false };
       }
-      console.log(`    -> ${img.path} (${img.width}x${img.height})${img.grid ? ' [lưới tọa độ]' : ''}`);
+      console.log(`    -> ${img.path} (${img.width}x${img.height})${img.grid ? ' [coordinate grid]' : ''}`);
 
       if (state.step === 1) await calibrate(img);
 
-      // đã chụp ảnh mới -> coi như đã quan sát lại sau window action
+      // a new shot counts as the required look after a window action
       acknowledgeReobserve();
 
-      // --- Phân tích pixel tự động cho bước tới (kết quả THẬT của chuỗi trước) ---
+      // Pixel analysis of what the previous chain actually did.
       const analysisMsgs = [];
       if (config.pixelAnalysis && state.frame && prep.frame) {
         const t = formatDiff(diffFrames(state.frame, prep.frame));
@@ -214,11 +214,11 @@ Dry-run: ${config.dryRun} | Provider: ${config.provider} | Failsafe góc màn h�
       console.log(`    Foreground: ${fgText}`);
       if (stagMsg) console.log(`    [WINDOW] STAGNATION DETECTED: ${stagMsg}`);
       if (analysisText) {
-        console.log('    [PIXEL] Phân tích sẽ gửi model:');
+        console.log('    [PIXEL] Analysis sent to the model:');
         for (const line of analysisText.split('\n')) console.log(`      - ${line}`);
       }
 
-      console.log('[2] Gửi ảnh cho agent phân tích...');
+      console.log('[2] Sending the image to the agent...');
       const { actions, raw, durationMs, sessionId } = await ask({
         goal: opts.goal,
         step: state.step,
@@ -237,30 +237,30 @@ Dry-run: ${config.dryRun} | Provider: ${config.provider} | Failsafe góc màn h�
       if (config.provider === 'opencode' && sessionId) {
         if (state.session.sessionId !== sessionId) {
           state.session.sessionId = sessionId;
-          console.log(`    Session dùng chung: ${sessionId}`);
+          console.log(`    Shared session: ${sessionId}`);
         }
         state.session.calls++;
         if (state.session.calls >= config.rotateAfterCalls) {
           console.log(
-            `    Đạt ${config.rotateAfterCalls} lượt gọi - xoay vòng: xóa session cũ, sang session mới.`
+            `    Reached ${config.rotateAfterCalls} calls. Rotating: delete the old session and start a new one.`
           );
           await deleteSession(state.session.sessionId);
           state.session = { sessionId: null, calls: 0 };
         }
         saveSessionState(state.session);
       }
-      // chỉ in HÀNH ĐỘNG, không in lời bình/tóm tắt màn hình của model
+      // Print the actions only, not the model's screen commentary.
       const parseFailed = actions.length === 1 && actions[0]._parseFailed;
-      const shown = parseFailed ? `(không parse được) ${raw.replace(/\s+/g, ' ').slice(0, 200)}` : JSON.stringify(actions);
-      console.log(`    Phản hồi (${(durationMs / 1000).toFixed(1)}s): ${shown}`);
+      const shown = parseFailed ? `(could not parse) ${raw.replace(/\s+/g, ' ').slice(0, 200)}` : JSON.stringify(actions);
+      console.log(`    Reply (${(durationMs / 1000).toFixed(1)}s): ${shown}`);
 
       let queue = actions;
       if (opts.observe) {
         const before = queue.length;
         queue = queue.filter((a) => a.action !== 'done' && a.action !== 'finish');
-        if (queue.length < before) console.log('    (observe mode) bỏ qua done, tiếp tục quan sát.');
+        if (queue.length < before) console.log('    (observe mode) ignored done and kept watching.');
       }
-      // Kiểm tra pixel: điểm click có nằm trong màn hình / cửa sổ đích không?
+      // Check whether click points are inside the screen and the target window.
       if (config.pixelAnalysis && prep.frame) {
         const pts = [];
         let last = null;
@@ -283,16 +283,16 @@ Dry-run: ${config.dryRun} | Provider: ${config.provider} | Failsafe góc màn h�
         state.lastPoint = last;
       }
 
-      console.log(`[3] Chuỗi ${queue.length} hành động:`, JSON.stringify(queue));
+      console.log(`[3] Chain of ${queue.length} action(s):`, JSON.stringify(queue));
 
       if (queue.some((a) => a._parseFailed)) {
-        console.log('    Cảnh báo: không parse được JSON, chuyển sang wait.');
+        console.log('    Warning: could not parse JSON, falling back to wait.');
       }
 
-      console.log('[4] Thực thi chuỗi...');
+      console.log('[4] Running the chain...');
       const result = await executeActions(queue);
 
-      // Con trỏ có THẬT SỰ nằm ở điểm đã click không? (bắt lỗi mapping tọa độ)
+      // Did the pointer actually land on the clicked point? Catches a bad coordinate map.
       if (config.pixelAnalysis && !config.dryRun && state.lastPoint) {
         try {
           const pos = await mouse.getPosition();
@@ -302,7 +302,7 @@ Dry-run: ${config.dryRun} | Provider: ${config.provider} | Failsafe góc màn h�
             state.pendingMsgs.push(msg);
           }
         } catch {
-          /* không đọc được vị trí chuột */
+          /* could not read the pointer position */
         }
       }
       state.lastPoint = null;
@@ -314,49 +314,49 @@ Dry-run: ${config.dryRun} | Provider: ${config.provider} | Failsafe góc màn h�
       const repeats = stagnation.push(queue);
       if (repeats >= 3) {
         console.log(
-          `    [WINDOW] STAGNATION DETECTED: chuỗi vừa chạy đã lặp ${repeats} lần liên tiếp.`
+          `    [WINDOW] STAGNATION DETECTED: the chain just ran has repeated ${repeats} times in a row.`
         );
       }
       if (result.blocked) {
         lastBlocked = result.blocked;
         lastBlockedReason = result.blockReason || '';
-        console.log(`    [WINDOW] TRẠNG THÁI: ${result.blocked} - ${lastBlockedReason}`);
+        console.log(`    [WINDOW] STATUS: ${result.blocked} - ${lastBlockedReason}`);
       } else if (!result.reobserve) {
         lastBlocked = null;
         lastBlockedReason = '';
       }
       if (result.reobserve) {
-        console.log('    [WINDOW] REOBSERVE_REQUIRED: bước kế tiếp sẽ chụp ảnh mới trước khi input.');
+        console.log('    [WINDOW] REOBSERVE_REQUIRED: the next step captures a new image before input.');
       }
 
       if (result.done) {
-        console.log('\n*** AGENT BÁO HOÀN TẤT MỤC TIÊU ***');
+        console.log('\n*** AGENT REPORTS THE GOAL IS DONE ***');
         break;
       }
     } catch (error) {
-      console.error('    Lỗi trong vòng lặp:', error.message || error);
+      console.error('    Loop error:', error.message || error);
     }
 
     if (stop) break;
     if (opts.once) {
-      console.log('\nChế độ --once: dừng sau 1 bước.');
+      console.log('\n--once: stopped after 1 step.');
       break;
     }
     if (opts.steps && state.step >= opts.steps) {
-      console.log(`\nĐạt giới hạn ${opts.steps} bước.`);
+      console.log(`\nReached the limit of ${opts.steps} steps.`);
       break;
     }
 
     const waitMs = opts.interval ?? config.intervalMs;
-    console.log(`Đợi ${waitMs / 1000}s cho chu kỳ tiếp theo...`);
+    console.log(`Waiting ${waitMs / 1000}s for the next cycle...`);
     await sleep(waitMs);
   }
 
-  console.log(`\nKết thúc sau ${state.step} bước.`);
+  console.log(`\nFinished after ${state.step} steps.`);
 }
 
 const opts = parseArgs(process.argv.slice(2));
 runLoop(opts).catch((err) => {
-  console.error('Lỗi nghiêm trọng:', err);
+  console.error('Fatal error:', err);
   process.exit(1);
 });

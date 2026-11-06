@@ -1,26 +1,26 @@
-MUC TIEU: chuyen sang cua so Roblox, vao1 game bat ky, roi di chuyen nhan vat trong game.
+GOAL: Switch to the Roblox window, join any game, then move the character.
 
-BUOC1 - DUACUA SO ROBLOX LEN TRUONG (thuc hien TRUOC moi hanh dong khac):
-- Neu anh chup hien tai khong thay ro man hinh Roblox (bi cua so terminal che), chay bash truoc:
+STEP 1 - BRING THE ROBLOX WINDOW TO THE FRONT (do this BEFORE any other action):
+- If the current shot does not clearly show Roblox (a terminal window covers it), run bash first:
   powershell -NoProfile -Command (New-Object -ComObject WScript.Shell).AppActivate('Roblox')
-  roi tra ve [{"action":"wait","ms":1500}]. Chu ky sau se chup lai de kiem tra.
-- Neu van khong ro: click icon Roblox tren taskbar de day man hinh.
-- Chi khi man hinh Robloc hien thi ro day du moi dua ra hanh dong khac.
+  then return [{"action":"wait","ms":1500}]. The next cycle captures again.
+- If it is still unclear: click the Roblox icon on the taskbar to fill the screen.
+- Only give other actions when the Roblox screen is fully visible.
 
-BUOC2 - VAO1 GAME (neu dang o trang home/menu/lobby cua Roblox):
-- Click vao1 o game bat ky dang hien thi tren man hinh, sau do click nut Play/Join.
-- Neu co dialog xac nhan/thong bao thi click nut xac nhan/OK/dong.
-- Doi load bang hanh dong wait 1500ms, lap lai den khi thay the gioi game (thanh HP/Level, hoac nhan vat).
+STEP 2 - JOIN A GAME (if you are on the Roblox home, menu, or lobby):
+- Click any game tile visible on screen, then click Play or Join.
+- If a confirm or notice dialog appears, click OK or close it.
+- Wait with a 1500ms wait action, and repeat until the game world is visible (HP/Level bar, or the character).
 
-BUOC3 - DI CHUYEN NHAN VAT:
-- Khi da thay nhan vat hoac the gioi game, gop chuoi:
+STEP 3 - MOVE THE CHARACTER:
+- Once the character or the game world is visible, return this chain:
   [{"action":"hold","key":"W","ms":1500},{"action":"wait","ms":300},{"action":"hold","key":"A","ms":700}]
-- Sau do chup lai de kiem tra nhan vat co di chuyen khong.
-- Neu nhan vat khong chuyen vi bi menu/dialog che: click vao giua man hinh game roi thuc hien lai chuoi hold.
-- Khi nhan vat da di chuyen duoc (vi tri trong game thay doi): tra [{"action":"done","reason":"da di chuyen nhan vat"}].
+- Then capture again to see whether the character moved.
+- If a menu or dialog blocked the move: click the middle of the game, then repeat the hold chain.
+- When the character has moved (the in-game position changed): return [{"action":"done","reason":"character moved"}].
 
-QUY TAC:
-- KHONG BAO gio click o toa do x <= 10 va y <= 10 (goc tren trai man hinh) - do la vung dung khẩn cap.
-- Tra ve DUY NHAT mot mang JSON bat dau bang [ va ket thuc bang ], khong text khac, khong markdown.
-- Khong ro rang: [{"action":"wait","ms":1500}].
-- Gop toi da 5 thao tac moi lan.
+RULES:
+- NEVER click at x <= 10 and y <= 10 (the top-left corner). That corner is the emergency stop.
+- Return ONLY one JSON array that starts with [ and ends with ]. No other text and no markdown.
+- If it is unclear: [{"action":"wait","ms":1500}].
+- At most 5 actions per response.

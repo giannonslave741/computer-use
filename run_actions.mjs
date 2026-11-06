@@ -1,5 +1,5 @@
-// CLI: node run_actions.mjs actions.json  (hoac JSON string)
-// Tu dong chup anh + acknowledgeReobserve khi bi REOBSERVE_REQUIRED.
+// CLI: node run_actions.mjs actions.json  (or a JSON string)
+// Takes a screenshot and calls acknowledgeReobserve when the result is REOBSERVE_REQUIRED.
 import fs from 'node:fs';
 import { executeActions } from './executor.js';
 import { takeScreenShot } from './capture.js';
@@ -7,7 +7,7 @@ import { acknowledgeReobserve } from './executor.js';
 
 const arg = process.argv[2];
 if (!arg) {
-  console.error('thieu JSON action (file path hoac JSON string)');
+  console.error('missing action JSON (file path or JSON string)');
   process.exit(1);
 }
 let json = arg;
@@ -16,7 +16,7 @@ let actions;
 try {
   actions = JSON.parse(json);
 } catch (e) {
-  console.error('JSON loi: ' + e.message);
+  console.error('invalid JSON: ' + e.message);
   process.exit(1);
 }
 
@@ -29,7 +29,7 @@ for (let attempt = 0; attempt < 4 && !done; attempt++) {
       const executed = Number(res.executed || 0);
       actions = actions.slice(executed);
       const shot = await takeScreenShot();
-      console.log(`    [REOBSERVE] da chup ${shot.path} -> chay tiep ${actions.length} hanh dong`);
+      console.log(`    [REOBSERVE] captured ${shot.path} -> continuing ${actions.length} action(s)`);
       acknowledgeReobserve();
       continue;
     }
@@ -38,7 +38,7 @@ for (let attempt = 0; attempt < 4 && !done; attempt++) {
     console.log('DONE ' + JSON.stringify(res));
     break;
   } catch (e) {
-    console.error('ACTION LOI: ' + (e && e.message ? e.message : String(e)));
+    console.error('ACTION ERROR: ' + (e && e.message ? e.message : String(e)));
     process.exit(1);
   }
 }

@@ -14,17 +14,17 @@ if (args.includes('--devices')) {
     init();
     console.table(listDevices());
   } catch (err) {
-    console.error('Không liệt kê được thiết bị:', err.message);
+    console.error('Could not list devices:', err.message);
     process.exit(1);
   }
   process.exit(0);
 }
 
 const backend = await resolveBackend();
-console.log(`Backend đang dùng: ${backend.name}`);
+console.log(`Backend in use: ${backend.name}`);
 if (backend.name === 'nutjs') {
-  console.log('  -> Driver Interception chưa hoạt động, lệnh sẽ đi qua SendInput.');
-  console.log('     Cài driver:  npm run setup-driver   (cần quyền Admin)');
+  console.log('  -> The Interception driver is not running, so input goes through SendInput.');
+  console.log('     Install the driver:  npm run setup-driver   (requires Administrator)');
 }
 console.log('');
 
@@ -39,14 +39,14 @@ const step = async (label, fn) => {
     await fn();
     console.log('OK');
   } catch (err) {
-    console.log(`LỖI: ${err.message}`);
+    console.log(`ERROR: ${err.message}`);
   }
 };
 
-console.log('Trong 6 giây hãy làm:');
-console.log('  1. Mở Notepad, kéo cửa sổ vào GIỮA màn hình.');
-console.log('  2. Click vào vùng soạn thảo của Notepad.');
-console.log('  3. Đừng chạm chuột/phím cho đến khi script chạy xong.');
+console.log('In the next 6 seconds:');
+console.log('  1. Open Notepad and drag the window to the CENTER of the screen.');
+console.log('  2. Click the Notepad editing area.');
+console.log('  3. Do not touch the mouse or keyboard until the script finishes.');
 console.log('');
 for (let i = 6; i > 0; i--) {
   process.stdout.write(`  ... ${i}\r`);
@@ -59,28 +59,28 @@ const height = await screen.height();
 const cx = Math.round(width / 2);
 const cy = Math.round(height / 2);
 
-await step(`di chuyển chuột về giữa (${cx}, ${cy})`, async () => {
+await step(`move the mouse to the center (${cx}, ${cy})`, async () => {
   await backend.moveTo(cx, cy);
   await sleep(150);
-  console.log(`\n      con trỏ thật: ${await cur()}`);
+  console.log(`\n      actual cursor: ${await cur()}`);
 });
 
-await step('click chuột trái (gọi)', async () => {
+await step('left click', async () => {
   await backend.click('left', false);
   await sleep(150);
-  console.log(`\n      con trỏ thật: ${await cur()}`);
+  console.log(`\n      actual cursor: ${await cur()}`);
 });
 
 if (!noType) {
-  await step('gõ chữ "cua-test 123"', async () => {
+  await step('type "cua-test 123"', async () => {
     await backend.typeText('cua-test 123');
     await sleep(200);
   });
-  await step('phím Enter', async () => {
+  await step('press Enter', async () => {
     await backend.pressKey('enter');
     await sleep(150);
   });
-  await step('phím x', async () => {
+  await step('press x', async () => {
     await backend.pressKey('x');
     await sleep(150);
   });
@@ -88,32 +88,32 @@ if (!noType) {
     await backend.hotkey(['control', 'a']);
     await sleep(200);
   });
-  await step('phím End (bỏ chọn)', async () => {
+  await step('press End (clear the selection)', async () => {
     await backend.pressKey('end');
     await sleep(150);
   });
 } else {
-  console.log('  (bỏ qua gõ chữ theo --no-type)');
+  console.log('  (typing skipped because of --no-type)');
 }
 
-await step('cuộn xuống 3 nấc / lên 3 nấc', async () => {
+await step('scroll down 3 notches, then up 3', async () => {
   await backend.scroll('down', 3);
   await sleep(200);
   await backend.scroll('up', 3);
   await sleep(200);
 });
 
-await step(`di chuyển chuột về góc (60, 60)`, async () => {
+await step('move the mouse to the corner (60, 60)', async () => {
   await backend.moveTo(60, 60);
   await sleep(150);
-  console.log(`\n      con trỏ thật: ${await cur()}`);
+  console.log(`\n      actual cursor: ${await cur()}`);
 });
 
 console.log('');
 if (backend.name === 'interception') {
-  console.log('Nếu chữ "cua-test 123" hiện trong Notepad và chuột chạy đúng -> Interception hoạt động.');
-  console.log('Nếu sai vị trí chuột/gõ không hiện -> đổi thiết bị trong config.interception (keyboard/mouse).');
+  console.log('If "cua-test 123" appears in Notepad and the mouse moved correctly, Interception is working.');
+  console.log('If the mouse is in the wrong place or typing does not appear, change the devices in config.interception (keyboard/mouse).');
 } else {
-  console.log('Đang ở chế độ nut-js (SendInput). Cài driver rồi chạy lại: npm run setup-driver && npm run test-input');
+  console.log('Using nut-js (SendInput). Install the driver and run again: npm run setup-driver && npm run test-input');
 }
 process.exit(0);

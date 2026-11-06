@@ -1,4 +1,4 @@
-// cu/drag.mjs — kéo chuột có bước trung gian để Qt nhận mouseMove.
+// cu/drag.mjs — drag with intermediate steps so Qt receives mouseMove.
 //   node drag.mjs <x1> <y1> <x2> <y2> [left|middle] [steps]
 import { createRequire } from 'module';
 const require = createRequire('D:/computer use/package.json');

@@ -10,18 +10,18 @@ let mapping = { scaleX: 1, scaleY: 1, maxX: Infinity, maxY: Infinity };
 export function setCoordinateMap(scaleX, scaleY = scaleX, maxX = Infinity, maxY = Infinity) {
   mapping = { scaleX, scaleY, maxX, maxY };
   console.log(
-    `    Tọa độ: scale = ${scaleX.toFixed(4)} x ${scaleY.toFixed(4)} | clamp khung = ${maxX}x${maxY}`
+    `    Coordinates: scale = ${scaleX.toFixed(4)} x ${scaleY.toFixed(4)} | clamp frame = ${maxX}x${maxY}`
   );
 }
 
 function toScreen(x, y) {
   if (typeof x !== 'number' || typeof y !== 'number' || Number.isNaN(x) || Number.isNaN(y)) {
-    throw new Error(`Tọa độ không hợp lệ: (${x}, ${y})`);
+    throw new Error(`Invalid coordinate: (${x}, ${y})`);
   }
   const cx = Math.min(Math.max(0, Math.round(x)), mapping.maxX - 1);
   const cy = Math.min(Math.max(0, Math.round(y)), mapping.maxY - 1);
   if (cx !== Math.round(x) || cy !== Math.round(y)) {
-    console.log(`    Tọa độ (${x}, ${y}) bị clamp về (${cx}, ${cy})`);
+    console.log(`    Coordinate (${x}, ${y}) clamped to (${cx}, ${cy})`);
   }
   return new Point(Math.round(cx * mapping.scaleX), Math.round(cy * mapping.scaleY));
 }
@@ -43,10 +43,10 @@ async function drag(backend, from, to) {
 }
 
 // ---------------------------------------------------------------------------
-// WINDOW GUARD - trạng thái cửa sổ do executor theo dõi
-//   expectedHwnd : HWND mà input action phải gửi vào (0 = chưa biết)
-//   reobserve    : vừa có window action -> PHẢI chụp ảnh mới trước khi input
-//   blocked      : activation thất bại -> cấm input action
+// WINDOW GUARD - window state tracked by the executor
+//   expectedHwnd : HWND that input must go to (0 = unknown)
+//   reobserve    : a window action just ran -> a new screenshot is required before input
+//   blocked      : activation failed -> input actions are forbidden
 // ---------------------------------------------------------------------------
 const guard = {
   expectedHwnd: 0,
@@ -63,12 +63,12 @@ export function resetWindowGuard() {
   console.log('    [WINDOW] guard reset');
 }
 
-/** Gọi sau khi index.js đã chụp screenshot mới (đã quan sát lại). */
+/** Call after index.js has taken a new screenshot (the required new look). */
 export function acknowledgeReobserve() {
   guard.reobserve = false;
 }
 
-/** Mở block khi không còn cách nào khác (dùng rất hạn chế). */
+/** Clear the block only when there is no other way. Use rarely. */
 export function clearWindowBlock() {
   guard.blocked = null;
 }
@@ -91,7 +91,7 @@ function setExpected(win) {
 function describeHwnd(hwnd) {
   const w = hwnd ? wm.describeWindow(hwnd) : null;
   if (!w) return `hwnd=${hwnd}`;
-  return `hwnd=${hwnd} "${w.title || w.className || '(không có title)'}" (${w.processName})`;
+  return `hwnd=${hwnd} "${w.title || w.className || '(no title)'}" (${w.processName})`;
 }
 
 // ---------------------------------------------------------------------------
@@ -111,11 +111,11 @@ async function runWindowActivate(action) {
   setExpected(null);
   guard.blocked = {
     blocked: 'WINDOW_ACTIVATE_FAILED',
-    reason: res.reason || 'không activate được cửa sổ',
+    reason: res.reason || 'could not activate the window',
     target: action.target
   };
   console.log(`    [WINDOW] window_activate -> FAILED: ${guard.blocked.reason}`);
-  console.log('    [WINDOW] BLOCKED: WINDOW_ACTIVATE_FAILED (không gửi input cho tới khi activate lại được)');
+  console.log('    [WINDOW] BLOCKED: WINDOW_ACTIVATE_FAILED (no input until activation succeeds)');
   return { done: false, window: { ...res }, blocked: { ...guard.blocked } };
 }
 
@@ -133,7 +133,7 @@ async function runWindowRestore(action) {
   setExpected(null);
   guard.blocked = {
     blocked: 'WINDOW_ACTIVATE_FAILED',
-    reason: res.reason || 'không restore được cửa sổ',
+    reason: res.reason || 'could not restore the window',
     target: action.target
   };
   console.log(`    [WINDOW] window_restore -> FAILED: ${guard.blocked.reason}`);
@@ -151,7 +151,7 @@ async function runWindowMinimize(action) {
   }
   guard.blocked = {
     blocked: 'WINDOW_ACTIVATE_FAILED',
-    reason: res.reason || 'không minimize được cửa sổ',
+    reason: res.reason || 'could not minimize the window',
     target: action.target
   };
   console.log(`    [WINDOW] window_minimize -> FAILED: ${guard.blocked.reason}`);
@@ -164,7 +164,7 @@ async function runShowDesktop() {
   setExpected(null);
   if (res.success) {
     guard.blocked = null;
-    console.log(`    [WINDOW] show_desktop -> OK (minimize ${res.minimized} cửa sổ)`);
+    console.log(`    [WINDOW] show_desktop -> OK (minimized ${res.minimized} window(s))`);
     return { done: false, desktop: { ...res, reason: undefined }, reobserve: true };
   }
   console.log(`    [WINDOW] show_desktop -> PARTIAL: ${res.reason || ''}`);
@@ -172,9 +172,9 @@ async function runShowDesktop() {
 }
 
 /**
- * FALLBACK CHỈ DÙNG KHI window_activate KHÔNG TÌM ĐƯỢC CỬA SỔ.
- * Chiến lược: tìm HWND qua Window Manager; nếu có -> đưa target lên trên cùng
- * bằng cách minimize các cửa sổ khác rồi activate (không click mù taskbar).
+ * FALLBACK USED ONLY WHEN window_activate CANNOT FIND THE WINDOW.
+ * Strategy: find the HWND through the window manager. If it exists, raise the target
+ * by minimizing the other windows and then activating it. Do not click the taskbar blindly.
  */
 async function runTaskbarActivate(action) {
   const { window: found } = wm.findWindow(action.target);
@@ -183,7 +183,7 @@ async function runTaskbarActivate(action) {
     setExpected(null);
     guard.blocked = {
       blocked: 'TASKBAR_ACTIVATE_FAILED',
-      reason: `không tìm thấy cửa sổ "${JSON.stringify(action.target)}" qua Window Manager; taskbar button không xác định được bằng API`,
+      reason: `window "${JSON.stringify(action.target)}" was not found by the window manager; the taskbar button cannot be identified by the API`,
       taskbarRect: taskbar
     };
     console.log(`    [WINDOW] taskbar_activate -> FAILED: ${guard.blocked.reason}`);
@@ -195,7 +195,7 @@ async function runTaskbarActivate(action) {
     try {
       await wm.minimizeWindow({ hwnd: w.hwnd });
     } catch {
-      /* bỏ qua */
+      /* ignore */
     }
   }
   const res = await wm.activateWindow({ hwnd: found.hwnd });
@@ -208,7 +208,7 @@ async function runTaskbarActivate(action) {
   }
   guard.blocked = {
     blocked: 'TASKBAR_ACTIVATE_FAILED',
-    reason: res.reason || 'taskbar fallback không activate được',
+    reason: res.reason || 'taskbar fallback could not activate the window',
     target: action.target
   };
   console.log(`    [WINDOW] taskbar_activate -> FAILED: ${guard.blocked.reason}`);
@@ -226,18 +226,18 @@ async function runWindowList() {
 // ---------------------------------------------------------------------------
 export async function executeAction(action) {
   if (!action || typeof action !== 'object') {
-    throw new Error('Hành động rỗng hoặc không phải object');
+    throw new Error('Action is empty or not an object');
   }
 
   if (config.dryRun) {
-    console.log('    [DRY-RUN] bỏ qua thực thi:', JSON.stringify(action));
+    console.log('    [DRY-RUN] not executing:', JSON.stringify(action));
     return {
       done: action.action === 'done' || action.action === 'finish',
       reason: action.reason
     };
   }
 
-  // chỉ resolve input backend khi action thực sự cần gửi input
+  // resolve the input backend only when the action really sends input
   const backend = INPUT_ACTIONS.has(action.action) ? await resolveBackend() : null;
 
   switch (action.action) {
@@ -272,7 +272,7 @@ export async function executeAction(action) {
     }
     case 'hotkey': {
       const names = (action.keys || []).map(resolveKeyName);
-      if (names.length === 0) throw new Error('hotkey cần mảng keys');
+      if (names.length === 0) throw new Error('hotkey needs a keys array');
       await backend.hotkey(names);
       return { done: false };
     }
@@ -289,7 +289,7 @@ export async function executeAction(action) {
       return { done: false };
     case 'done':
     case 'finish':
-      console.log('    HOÀN TẤT:', action.reason || '(không có lý do)');
+      console.log('    DONE:', action.reason || '(no reason)');
       resetWindowGuard();
       return { done: true, reason: action.reason };
     case 'window_list':
@@ -305,14 +305,14 @@ export async function executeAction(action) {
     case 'taskbar_activate':
       return await runTaskbarActivate(action);
     default:
-      throw new Error(`Hành động không hỗ trợ: ${action.action}`);
+      throw new Error(`Unsupported action: ${action.action}`);
   }
 }
 
 // ---------------------------------------------------------------------------
-// Execute 1 chuỗi (array) action
-//   - chặn input khi reobserve / activation failed / foreground sai
-//   - mỗi action có try/catch riêng (1 lỗi không giết cả chuỗi)
+// Run one action chain (an array).
+//   - block input on reobserve, failed activation, or the wrong foreground
+//   - each action has its own try/catch (one failure does not kill the chain)
 // ---------------------------------------------------------------------------
 export async function executeActions(actions) {
   const queue = (Array.isArray(actions) ? actions : [actions]).filter(
@@ -324,7 +324,7 @@ export async function executeActions(actions) {
     return { done: false, executed: 0 };
   }
 
-  // block do window_activate thất bại được GIỮ tới khi activate lại thành công
+  // a failed window_activate stays blocked until a later activate succeeds
   let executed = 0;
   let stopped = null;
 
@@ -338,16 +338,16 @@ export async function executeActions(actions) {
       if (guard.blocked) {
         stopped = { ...guard.blocked };
         console.log(
-          `    [WINDOW] BLOCKED: ${guard.blocked.blocked} -> bỏ qua "${name}" (${guard.blocked.reason})`
+          `    [WINDOW] BLOCKED: ${guard.blocked.blocked} -> skipped "${name}" (${guard.blocked.reason})`
         );
         break;
       }
       if (guard.reobserve) {
         stopped = {
           blocked: 'REOBSERVE_REQUIRED',
-          reason: `vừa có window action ở chuỗi trước -> phải xem screenshot mới trước khi "${name}"`
+          reason: `a window action ran in the previous chain -> look at a new screenshot before "${name}"`
         };
-        console.log(`    [WINDOW] REOBSERVE_REQUIRED -> bỏ qua "${name}"`);
+        console.log(`    [WINDOW] REOBSERVE_REQUIRED -> skipped "${name}"`);
         break;
       }
       if (guard.expectedHwnd) {
@@ -355,9 +355,9 @@ export async function executeActions(actions) {
         if (fg !== guard.expectedHwnd) {
           stopped = {
             blocked: 'FOREGROUND_CHANGED',
-            reason: `foreground=${describeHwnd(fg)} nhưng cửa sổ đích=${describeHwnd(guard.expectedHwnd)}`
+            reason: `foreground=${describeHwnd(fg)} but the target window=${describeHwnd(guard.expectedHwnd)}`
           };
-          console.log(`    [WINDOW] FOREGROUND_CHANGED -> bỏ qua "${name}"`);
+          console.log(`    [WINDOW] FOREGROUND_CHANGED -> skipped "${name}"`);
           console.log(`    [WINDOW] ${stopped.reason}`);
           break;
         }
@@ -377,7 +377,7 @@ export async function executeActions(actions) {
       if (i < queue.length - 1) await sleep(80);
     } catch (err) {
       executed++;
-      console.log(`    LỖI hành động "${name}": ${err.message} -> bỏ qua, tiếp tục chuỗi`);
+      console.log(`    Action "${name}" failed: ${err.message} -> skipped, chain continues`);
     }
   }
 

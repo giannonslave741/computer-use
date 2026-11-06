@@ -1,4 +1,4 @@
-// cu/click.mjs — click tại tọa độ: node click.mjs X Y [dbl|right]
+// cu/click.mjs — click at a coordinate: node click.mjs X Y [dbl|right]
 import { resolveBackend } from '../backends.js';
 import { sleep } from '@nut-tree-fork/nut-js';
 

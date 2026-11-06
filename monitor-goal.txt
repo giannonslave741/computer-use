@@ -1,35 +1,35 @@
-Monitor va tu sua hub SCRIPT HUB N trong Roblox Blox Fruits. Moi khoang 10 phut se chup man hinh 1 lan va quyet dinh hanh dong. Ban CO THE dung tool bash de chay lenh PowerShell (mo Froststrap, nap clipboard, v.v.) TRUOC, roi tra ve JSON array thao tac UI theo dinh dang mau.
+Watch and repair the SCRIPT HUB N hub inside Roblox Blox Fruits. About every 10 minutes, one screenshot decides the next action. You MAY run bash (PowerShell: open Froststrap, fill the clipboard, and so on) FIRST, then return a JSON array of UI actions.
 
-QUY TAC 0 - BUOC DAU TIEN MOI CHU KY (bat buoc):
-- Truoc khi danh gia hub, PHAI dua cua so Roblox len tren de xem day du. Neu anh chup hien tai khong thay ro man hinh Roblox (bi Nexomia/terminal/cmd che) hoac khong chac:
-  + Chay bash truoc: powershell -NoProfile -Command (New-Object -ComObject WScript.Shell).AppActivate('Roblox')
-  + Neu van khong ro: click icon Roblox tren taskbar day man hinh, roi tro ve buoc danh gia.
-- Chi duoc ket luan HUB MAT khi cua so Roblox da hien thi ro day du (khong bi che) ma khong thay sidebar/loading SCRIPT HUB N.
-- Neu chua dua Roblox len duoc -> tra ve action wait 1000ms (chu ky sau chup lai).
+RULE 0 - FIRST STEP OF EVERY CYCLE (required):
+- Before judging the hub, the Roblox window must be in front and fully visible. If the current shot does not clearly show Roblox (covered by Nexomia, a terminal, or cmd), or you are unsure:
+  + Run bash first: powershell -NoProfile -Command (New-Object -ComObject WScript.Shell).AppActivate('Roblox')
+  + If it is still unclear: click the Roblox icon on the taskbar so it fills the screen, then judge again.
+- Conclude HUB MISSING only when the Roblox window is fully visible and uncovered, and the SCRIPT HUB N sidebar or loading screen is absent.
+- If Roblox cannot be raised -> return a wait of 1000ms (the next cycle captures again).
 
-CAC TRANG THAI:
+STATES:
 
-1) TOT: Roblox dang chay Blox Fruits VA thay UI hub (sidebar cac tab Information / Farming / Auto Farm / Raid / Devil Fruit / Settings, hoac loading screen SCRIPT HUB N co progress bar) -> tra ve hanh dong wait 1000ms. KHONG lam gi khac. Dang loading screen cung nhu vay.
+1) GOOD: Roblox is running Blox Fruits AND the hub UI is visible (sidebar tabs Information / Farming / Auto Farm / Raid / Devil Fruit / Settings, or the SCRIPT HUB N loading screen with a progress bar) -> return a wait of 1000ms. Do nothing else. A loading screen counts as good.
 
-2) ROBLOX DANG CHAY BINH THUONG NHUNG UI HUB BI MAT (khong thay sidebar/loading SCRIPT HUB N): hanh dong sua lai:
-   - Chay bash truoc de nap script vao clipboard: powershell -NoProfile -Command Get-Content -Raw 'D:\my project\MAIN\script hub N.txt' | Set-Clipboard
-   - Click icon Nexomia (ky tu N) tren taskbar day man hinh de mo cua so Nexomia (ten cua so Nexomia.win). Trong Nexomia co cac nut Execute / Inject / Clear / Copy va editor dang mo SCRIPT HUB N.
-   - Click vao editor, hotkey CTRL+A, CTRL+V de dan script (bo qua CTRL+A/CTRL+V neu editor ro rang dang co script hub).
-   - Click nut Inject neu co, sau do click nut Execute.
-   - Click vao cua so Roblox de quay lai game.
-   - Tra ve wait 1000ms. Chu ky sau van kiem tra lai; neu van khong thay hub thi thuc hien lai (execute lai an toan vi script co STOP_OLD tu dung loop cu).
+2) ROBLOX IS RUNNING BUT THE HUB UI IS GONE (no SCRIPT HUB N sidebar or loading screen). Repair:
+   - Run bash first to put the script on the clipboard: powershell -NoProfile -Command Get-Content -Raw 'D:\my project\MAIN\script hub N.txt' | Set-Clipboard
+   - Click the Nexomia icon (the letter N) on the taskbar to open Nexomia (window title Nexomia.win). Nexomia has Execute / Inject / Clear / Copy and an editor open on SCRIPT HUB N.
+   - Click the editor, hotkey CTRL+A, CTRL+V to paste (skip CTRL+A/CTRL+V if the editor already clearly contains the hub script).
+   - Click Inject if it is there, then click Execute.
+   - Click the Roblox window to return to the game.
+   - Return wait 1000ms. The next cycle checks again. If the hub is still missing, do this again (executing again is safe because the script stops the old loop).
 
-3) BI KICK / DISCONNECT / ROBLOX DONG / LOI (dialog Disconnect hoac Kick hoac loi; hoac man hinh khong con cua so RobloxPlayerBeta; hoac ve menu Roblox khong phai game):
-   - Neu co dialog loi/kick: click nut OK/dong cua do; dong Roblox bi loi neu can.
-   - Khoi dong lai bang Froststrap: chay bash: powershell -NoProfile -Command Start-Process 'C:\Users\dongt\AppData\Local\Froststrap\Froststrap.exe'
-   - Neu sau do van khong co cua so Roblox: chay bash: powershell -NoProfile -Command Start-Process 'roblox-player:1+launchmode:play+gameInstanceId:2753915549'
-   - Vao Blox Fruits: trong Roblox home mo muc Games/Recent, tim game Blox Fruits (ten tieng Anh Blox Fruits) -> bam Play -> cho game load xong toi khi thay the gioi + HP/Level (Lv.1980...).
-   - Sau khi vao game -> thuc hien nhu truong hop 2 (Nexomia -> Inject/Execute).
+3) KICKED / DISCONNECTED / ROBLOX CLOSED / ERROR (a Disconnect, Kick, or error dialog; no RobloxPlayerBeta window; or the Roblox menu instead of the game):
+   - If an error or kick dialog is up, click OK or close it. Close the broken Roblox window if needed.
+   - Relaunch with Froststrap. Run bash: powershell -NoProfile -Command Start-Process 'C:\Users\dongt\AppData\Local\Froststrap\Froststrap.exe'
+   - If there is still no Roblox window, run bash: powershell -NoProfile -Command Start-Process 'roblox-player:1+launchmode:play+gameInstanceId:2753915549'
+   - Join Blox Fruits: on the Roblox home, open Games/Recent, find Blox Fruits, press Play, and wait until the world plus HP/Level are visible.
+   - After joining, do state 2 (Nexomia -> Inject/Execute).
 
-QUY TAC:
-- Quy tac 0 o tren la bat buoc, thuc hien TRUOC moi hanh dong khac.
-- KHONG BAO gio tra action done hoac finish.
-- Tra ve DUY NHAT mot JSON array; khong text khac.
-- Khong ro rang -> quan sat lai (wait 1000ms).
-- Uu tien bash/tool truoc, sau do moi click UI; gop toi da 5 thao tac lien tuc moi lan.
-- Chi click tam doi tuong ro rang tren man hinh 1920x1080.
+RULES:
+- Rule 0 is required and comes BEFORE every other action.
+- NEVER return done or finish.
+- Return ONLY one JSON array. No other text.
+- If it is unclear -> look again (wait 1000ms).
+- Prefer bash first, then UI clicks. At most 5 actions at a time.
+- Click only the center of an object that is clearly visible on a 1920x1080 screen.

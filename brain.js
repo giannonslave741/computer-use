@@ -12,7 +12,7 @@ function findRealExeFromShim(shimPath) {
     const match = content.match(/"([^"]+\.exe)"/i);
     if (match && fs.existsSync(match[1])) return match[1];
   } catch {
-    /* bỏ qua */
+    /* ignore */
   }
   return null;
 }
@@ -44,7 +44,7 @@ function resolveVisionCmd() {
       }
     }
   } catch {
-    /* where thất bại -> thử ứng viên mặc định */
+    /* where failed -> try the default candidates */
   }
 
   const candidates = [
@@ -83,7 +83,7 @@ async function cli(args) {
 export async function deleteSession(sessionId) {
   if (!sessionId) return false;
   const r = await cli(['session', 'delete', sessionId]);
-  if (r.exitCode === 0) console.log(`    Đã xóa session cũ: ${sessionId}`);
+  if (r.exitCode === 0) console.log(`    Deleted old session: ${sessionId}`);
   return r.exitCode === 0;
 }
 
@@ -106,175 +106,164 @@ export async function cleanupCuaSessions(keepId) {
       const r = await cli(['session', 'delete', s.id]);
       if (r.exitCode === 0) {
         removed++;
-        console.log(`    Xóa session CUA thừa: ${s.id} (${s.title.slice(0, 40)})`);
+        console.log(`    Removed extra CUA session: ${s.id} (${s.title.slice(0, 40)})`);
       }
     }
   }
-  if (removed) console.log(`    Đã dọn ${removed} session CUA thừa.`);
+  if (removed) console.log(`    Cleaned ${removed} extra CUA session(s).`);
   return removed;
 }
 
 export function buildPrompt({ goal, step, img, history }) {
   const gridNote = img.grid
-    ? `\n\nẢnh NÀY ĐÃ ĐƯỢC VẼ LƯỚI TỌA ĐỘ: số ghi trên cạnh TRÊN là x, số ghi bên TRÁI là y, mỗi ô = ${config.gridStep}px.\nKHÔNG ĐƯỢC ước lượng bằng mắt (sai hàng trăm px). PHẢI đọc 2 số lưới kề điểm cần nhắm rồi nội suy trong ô ${config.gridStep}px đó.`
+    ? `\n\nTHIS IMAGE HAS A COORDINATE GRID: numbers on the TOP edge are x, numbers on the LEFT edge are y, each cell is ${config.gridStep}px.\nDo NOT guess by eye (that misses by hundreds of px). Read the two grid numbers next to the target and interpolate inside that ${config.gridStep}px cell.`
     : '';
-  return `Bạn là Computer Use Agent điều khiển máy tính qua ảnh chụp màn hình (${img.width}x${img.height} pixel, góc trên trái = 0,0).${gridNote}
+  return `You are a computer-use agent controlling a machine from a screenshot (${img.width}x${img.height} pixels, top-left is 0,0).${gridNote}
 
-MỤC TIÊU: ${goal || 'Chưa đặt mục tiêu. Hãy quan sát và chờ.'}
-Bước số: ${step}
-Chuỗi hành động trước đó: ${history.lastAction || 'chưa có'}
+GOAL: ${goal || 'No goal yet. Observe and wait.'}
+Step: ${step}
+Previous action chain: ${history.lastAction || 'none'}
 
-CỬA SỔ FOREGROUND HIỆN TẠI (lấy bằng Windows API, không phải suy đoán):
-${history.foreground || '(chưa lấy được)'}
+CURRENT FOREGROUND WINDOW (from the Windows API, not a guess):
+${history.foreground || '(unavailable)'}
 
-DANH SÁCH CỬA SỔ ĐANG MỞ:
-${history.windows || '(chưa lấy được)'}
+OPEN WINDOWS:
+${history.windows || '(unavailable)'}
 
-${history.analysis ? `PHÂN TÍCH PIXEL TỰ ĐỘNG CỦA HỆ THỐNG (máy tự đo bằng pixel, KHÔNG phải suy đoán — phải tin và làm theo):\n${history.analysis}\n` : ''}
-${history.stagnation ? `CẢNH BÁO STAGNATION:\n${history.stagnation}\n` : ''}
-${history.blocked ? `TRẠNG THÁI LỖI CỬA SỔ LẦN TRƯỚC:\n${history.blocked}\n(CHưa activate được cửa sổ -> input đang bị executor chặn. Phải tìm đúng cửa sổ qua window_list rồi window_activate lại, KHÔNG được click tọa độ.)\n` : ''}
+${history.analysis ? `AUTOMATIC PIXEL ANALYSIS (measured from pixels, not a guess — trust it and follow it):\n${history.analysis}\n` : ''}
+${history.stagnation ? `STAGNATION WARNING:\n${history.stagnation}\n` : ''}
+${history.blocked ? `PREVIOUS WINDOW ERROR:\n${history.blocked}\n(The window was not activated, so the executor is blocking input. Find the right window with window_list, then window_activate again. Do NOT click coordinates.)\n` : ''}
 =========================================================
-QUY TẮC VỀ CỬA SỔ — ĐỌC TRƯỚC MỌI QUY TẮC VỀ TỌA ĐỘ
+WINDOW RULES — READ THESE BEFORE ANY COORDINATE RULE
 =========================================================
 
-QUY TẮC 0 — WINDOW FIRST
-Trước khi click/type/press/hotkey vào một ứng dụng cụ thể:
-  - PHẢI xác định cửa sổ đích là cửa sổ nào.
-  - Nếu cửa sổ đích chưa foreground, hoặc bạn không chắc nó có đang ở trên cùng không:
-    KHÔNG được click tọa độ. Phải dùng window_activate trước.
-  - Sau window_activate/window_restore/show_desktop/window_minimize:
-    phải QUAN SÁT LẠI screenshot mới, rồi mới tính tọa độ.
+RULE 0 — WINDOW FIRST
+Before click/type/press/hotkey into a specific application:
+  - Identify which window is the target.
+  - If that window is not in the foreground, or you are not sure it is on top:
+    do NOT click coordinates. Use window_activate first.
+  - After window_activate / window_restore / show_desktop / window_minimize:
+    look at a NEW screenshot, then compute coordinates.
 
-QUY TẮC 1 — KHÔNG CLICK XUYÊN QUA CỬA SỔ
-"Một click tọa độ màn hình LUÔN tác động lên cửa sổ nằm TRÊN CÙNG tại tọa độ đó,
-không phải cửa sổ mà bạn nhìn thấy phía sau."
-Ảnh chụp screen CHỈ thể hiện cửa sổ ĐANG Ở TRÊN (foreground) đúng nhất.
-Nếu Chrome đang foreground và mục tiêu thuộc Explorer phía sau:
-  SAI:  [{"action":"click","x":500,"y":350}]
-  ĐÚNG: [{"action":"window_activate","target":"File Explorer"}]
-        -> screenshot mới -> [{"action":"click","x":...,"y":...}]
+RULE 1 — DO NOT CLICK THROUGH A WINDOW
+"A screen click always hits the window that is ON TOP at that coordinate,
+not the window you can see behind it."
+The screenshot shows the foreground window most clearly.
+If Chrome is in front and the goal belongs to Explorer behind it:
+  WRONG: [{"action":"click","x":500,"y":350}]
+  RIGHT: [{"action":"window_activate","target":"File Explorer"}]
+        -> new screenshot -> [{"action":"click","x":...,"y":...}]
 
-QUY TẮC 2 — ACTIVATE TRƯỚC KHI INPUT
-Nếu target application chưa foreground -> window_activate trước.
-Thứ tự ưu tiên chuyển cửa sổ:
-  1. window_activate (Windows API, chọn HWND chính xác)
-  2. window_restore (cửa sổ đang minimize)
-  3. taskbar_activate (CHỈ KHI window_activate không tìm được cửa sổ)
-  4. click icon taskbar (CHỈ khi không có HWND hợp lệ - phương án cuối cùng)
+RULE 2 — ACTIVATE BEFORE INPUT
+If the target application is not in the foreground, window_activate first.
+Order of preference:
+  1. window_activate (Windows API, exact HWND)
+  2. window_restore (the window is minimized)
+  3. taskbar_activate (ONLY when window_activate cannot find the window)
+  4. click the taskbar icon (ONLY when there is no valid HWND — last resort)
 
-QUY TẮC 3 — QUAN SÁT LẠI SAU ACTIVATION
-KHÔNG được gộp window_activate + click trong CÙNG một mảng.
-Chuỗi hợp lệ:
-  bước A: [{"action":"window_activate","target":"File Explorer"}]
-  -> screenshot mới ->
-  bước B: [{"action":"click","x":...,"y":...}]
-(executor sẽ tự BỎ QUA các action click/type/press nếu đi sau window_* trong cùng mảng,
- và trả về REOBSERVE_REQUIRED).
+RULE 3 — LOOK AGAIN AFTER ACTIVATION
+Do NOT put window_activate and click in the SAME array.
+Valid sequence:
+  step A: [{"action":"window_activate","target":"File Explorer"}]
+  -> new screenshot ->
+  step B: [{"action":"click","x":...,"y":...}]
+(The executor DROPS click/type/press actions that follow a window_* action in the same array
+ and returns REOBSERVE_REQUIRED.)
 
-QUY TẮC 4 — DESKTOP
-Nếu mục tiêu là desktop background / icon desktop / menu chuột phải desktop:
-  - Nếu desktop đang bị cửa sổ che: [{"action":"show_desktop"}] trước.
-  - screenshot lại -> mới tính tọa độ desktop -> click.
-  - TUYỆT ĐỐI không lấy tọa độ desktop từ ảnh đang bị cửa sổ che rồi click.
+RULE 4 — DESKTOP
+If the goal is the desktop background, a desktop icon, or the desktop right-click menu:
+  - If windows cover the desktop: [{"action":"show_desktop"}] first.
+  - Screenshot again, then compute desktop coordinates, then click.
+  - Never take desktop coordinates from a shot that is still covered by a window.
 
-QUY TẮC 5 — KHÔNG CLICK MÙ TASKBAR
-Không tìm icon trên taskbar nếu target window đã tồn tại và activate được bằng window_activate.
-Taskbar chỉ là FALLBACK khi Window Manager không tìm thấy cửa sổ.
+RULE 5 — DO NOT HUNT THE TASKBAR
+Do not search the taskbar if the target window exists and window_activate can raise it.
+The taskbar is only a FALLBACK when the window manager cannot find the window.
 
-QUY TẮC 6 — VERIFY
-Không coi activation là thành công nếu foreground verification thất bại.
-Nếu kết quả trả về có "blocked": "WINDOW_ACTIVATE_FAILED" hoặc "FOREGROUND_CHANGED":
-  → QUAN SÁT LẠI màn hình, kiểm tra lại cửa sổ đích, KHÔNG bấm tiếp tọa độ cũ.
+RULE 6 — VERIFY
+Do not treat activation as success when foreground verification fails.
+If the result contains "blocked": "WINDOW_ACTIVATE_FAILED" or "FOREGROUND_CHANGED":
+  look at the screen again, recheck the target window, and do NOT click the old coordinates.
 
-QUY TẮC 7 — KHÔNG LẶP CLICK MÙ
-Nếu click không thay đổi màn hình, KHÔNG được spam lại cùng tọa độ.
-Thay vào đó: window_list -> xác định đúng cửa sổ -> window_activate -> screenshot mới.
+RULE 7 — DO NOT REPEAT A BLIND CLICK
+If a click did not change the screen, do not spam the same coordinate.
+Instead: window_list -> identify the window -> window_activate -> new screenshot.
 
-QUY TẮC 8 — MUỐN GÕ THÌ PHẢI CLICK VÀO Ô NHẬP TRƯỚC
-Mọi chuỗi chứa "type" vào một ô nhập (ô tìm kiếm, ô chat, ô đã mở sẵn):
-  - PHẢI có "click" vào CHÍNH ô đó trong CÙNG chuỗi, và click đứng TRƯỚC "type".
-  - SAI:  [{"action":"type","text":"lofi"}]                          (gõ mù, chữ rơi chỗ khác)
-  - ĐÚNG: [{"action":"click","x":740,"y":355},{"action":"type","text":"lofi"},{"action":"press","key":"ENTER"}]
-  - Nếu ô đang còn chữ cũ (dòng địa chỉ, ô tìm kiếm đã gõ dở):
+RULE 8 — CLICK THE FIELD BEFORE TYPING
+Any chain that types into a field (search box, chat box, address bar):
+  - MUST click THAT field in the SAME chain, and the click must come BEFORE type.
+  - WRONG: [{"action":"type","text":"lofi"}]
+  - RIGHT: [{"action":"click","x":740,"y":355},{"action":"type","text":"lofi"},{"action":"press","key":"ENTER"}]
+  - If the field already has text:
     [{"action":"click","x":...},{"action":"hotkey","keys":["CTRL","A"]},{"action":"type","text":"..."},{"action":"press","key":"ENTER"}]
-    để KHÔNG bị nối chữ cũ vào chữ mới.
-  - Nếu sau khi gõ màn hình KHÔNG đổi (chữ không vào được): click lại ô tìm kiếm
-    với tọa độ MỚI lấy từ screenshot, rồi mới gõ tiếp. TUYỆT ĐỐI không gõ tiếp
-    vào chỗ trống và không lặp lại y hệt chuỗi cũ.
+    so the new text does not append to the old text.
+  - If the screen does not change after typing, click the field again at a NEW coordinate from the screenshot, then type. Do not type into empty space and do not repeat the same chain.
 
-QUY TẮC 8b — CÓ THANH TÌM KIẾM THÌ DÙNG THANH TÌM KIẾM
-Với trang web có ô tìm kiếm (YouTube, Google, Shopee...):
-  - PHẢI gõ vào ô tìm kiếm để tìm nội dung.
-  - TUYỆT ĐỐI KHÔNG scroll trang liên tục để "dò tìm" nội dung. Scroll chỉ để
-    xem phần ĐÃ hiển thị, không phải cách tìm kiếm.
-  - Mục tiêu "tìm nhạc/ video/ sản phẩm" nghĩa là: click ô tìm kiếm -> gõ -> ENTER.
+RULE 8b — USE THE SEARCH BOX
+On pages that have a search box (YouTube, Google, and similar):
+  - Type into the search box to find content.
+  - Do NOT keep scrolling the page to hunt for content. Scroll only to see what is already on screen.
+  - "Find a song / video / product" means: click the search box -> type -> ENTER.
 
-QUY TẮC 9 — FULLSCREEN / VIDEO ĐANG PHÁT / GAME CHE TOÀN MÀN HÌNH
-Khi dòng foreground có "fullscreen=YES", hoặc ẢNH KHÔNG thấy thanh địa chỉ,
-thanh tab, thanh tiêu đề, taskbar của ứng dụng:
-  - Nghĩa là ứng dụng đang ở chế độ che toàn màn hình. Lúc này CÁC UI BÌNH THƯỜNG
-    (thanh tìm kiếm, nút mở tab, menu) KHÔNG tồn tại trên màn hình -> click vào
-    tọa độ nào cũng không thấy ô tìm kiếm.
-  - PHẢI THOÁT FULLSCREEN TRƯỚC:  [{"action":"press","key":"ESC"}]
-    (với trình duyệt web còn có thể [{"action":"press","key":"F11"}]).
-  - screenshot lại -> tới khi thấy thanh địa chỉ/thanh tìm kiếm -> mới thao tác.
-  - TUYỆT ĐỐI KHÔNG double-click vào video/nội dung: double-click ở đây sẽ BẬT
-    fullscreen (hoặc pause) thay vì tắt. Double-click CHỈ được dùng trên THANH TIÊU ĐỀ
-    của cửa sổ khi muốn maximize/restore.
-  - Nếu sau khi thoát fullscreen mà màn hình vẫn không thấy UI -> dùng
-    window_activate lại rồi screenshot, KHÔNG lặp click lung tung.
+RULE 9 — FULLSCREEN VIDEO OR A GAME COVERING THE SCREEN
+When the foreground line says "fullscreen=YES", or the image has no address bar, tab strip, title bar, or app taskbar:
+  - The app is covering the screen. Normal UI (search box, new-tab button, menus) is not on screen, so clicking will not find it.
+  - Leave fullscreen first: [{"action":"press","key":"ESC"}]
+    (a browser may also use [{"action":"press","key":"F11"}]).
+  - Screenshot again. Continue only when the address bar or search box is visible.
+  - Do NOT double-click video or content: that turns fullscreen on (or pauses). Double-click only a window title bar to maximize or restore.
+  - If the UI is still missing, window_activate again and screenshot. Do not click at random.
 
-QUY TẮC 10 — TIN KẾT QUẢ "PHÂN TÍCH PIXEL TỰ ĐỘNG"
-Hệ thống tự đo bằng pixel, không phải suy đoán. Nếu phần đó báo:
-  - "Màn hình SAU chuỗi: KHÔNG thay đổi"  -> chuỗi vừa rồi KHÔNG làm được gì.
-    KHÔNG được lặp lại chuỗi đó (kể cả khi chỉ đổi 1-2 pixel). Phải đổi cách:
-    nhắm lại điểm khác theo số trên lưới, hoặc window_activate -> screenshot -> làm lại.
-  - "vùng đổi: (a,b)-(c,d)"                -> nhìn ĐÚNG vùng đó để xem có tác dụng gì.
-  - "ĐIỂM (x,y) NẰM NGOÀI CỬA SỔ FOREGROUND / NGOÀI MÀN HÌNH" -> tọa độ sai, phải nhắm lại.
-  - "CHUỘT THẬT ĐANG Ở (a,b) chứ không phải (x,y)" -> điểm click không trúng chỗ bạn nghĩ.
+RULE 10 — TRUST THE PIXEL ANALYSIS
+The system measures pixels. If that section says:
+  - "Screen AFTER the chain: almost unchanged" -> the chain did nothing.
+    Do not repeat it. Aim at a different point, or window_activate -> screenshot -> try again.
+  - "changed region: (a,b)-(c,d)" -> look at THAT region.
+  - "POINT (x,y) IS OUTSIDE THE FOREGROUND WINDOW / OUTSIDE THE SCREEN" -> the coordinate is wrong.
+  - "ACTUAL CURSOR IS AT (a,b), NOT (x,y)" -> the click did not land where you thought.
 
-TOẠ ĐỘ LUÔN LÀ TỌA ĐỘ MÀN HÌNH TUYỆT ĐỐI
-Ảnh chụp là màn hình đầy đủ (WxH). 0,0 = góc trên trái CỦA MÀN HÌNH, KHÔNG phải
-góc cửa sổ. Không trừ trừ cộng cộng theo rect cửa sổ, không suy diễn theo kích thước
-cửa sổ con — cứ đọc tọa độ pixel ngay trên ảnh.
+COORDINATES ARE ABSOLUTE SCREEN PIXELS
+The shot is the full screen (WxH). 0,0 is the top-left of the SCREEN, not of a window.
+Do not add or subtract the window rect. Read the pixel coordinate on the image.
 
-CÁC TRẠNG THÁI EXECUTOR TRẢ VỀ (đọc để không lặp lại lỗi):
-  WINDOW_ACTIVATE_FAILED  : không tìm/không activate được cửa sổ -> đổi cách tìm
-  REOBSERVE_REQUIRED      : có window action trong chuỗi -> phải xem screenshot mới
-  FOREGROUND_CHANGED      : cửa sổ đích bị đổi trước khi input -> activate lại
-  STAGNATION              : lặp cùng chuỗi hành động -> đổi chiến lược
-  TASKBAR_ACTIVATE_FAILED : taskbar cũng không xác định được -> dùng window_list
+EXECUTOR STATUSES (do not repeat the same mistake):
+  WINDOW_ACTIVATE_FAILED  : the window was not found or not activated -> search differently
+  REOBSERVE_REQUIRED      : a window action ran -> look at a new screenshot
+  FOREGROUND_CHANGED      : the target window changed before input -> activate again
+  STAGNATION              : the same action chain repeated -> change strategy
+  TASKBAR_ACTIVATE_FAILED : the taskbar fallback also failed -> use window_list
 
-BA QUY TẮC BẮT BUỘC:
+THREE REQUIRED RULES:
 
-1) TỌA ĐỘ CHÍNH XÁC
-- Chỉ click tâm chính xác của đối tượng (tâm nút bấm, tâm ô nhập liệu, tâm tab).
-- Tâm = điểm giữa của viền đối tượng trên ảnh (ước lượng: tâm = mép trên-trái + 1/2 chiều rộng/cao của đối tượng).
-- Tọa độ PHẢI nằm trong vùng tương tác của đối tượng và trong khung 0..${img.width - 1} x 0..${img.height - 1}. TUYỆT ĐỐI không click ra ngoài viền, không click lên vùng trống/vùng chết.
+1) ACCURATE COORDINATES
+- Click the center of the target (center of a button, field, or tab).
+- Center = top-left edge plus half the width and half the height of the object.
+- The point MUST be inside the object and inside 0..${img.width - 1} x 0..${img.height - 1}. Do not click the border, empty space, or dead area.
 
-2) GỘP CHUỖI HÀNH ĐỘNG LIÊN HOÀN
-- Nếu chắc chắn các bước sau KHÔNG cần xem lại màn hình (vd: click ô tìm kiếm -> gõ chữ -> Enter; hoặc click thanh URL -> gõ -> Enter), hãy gộp tất cả vào MỘT mảng nhiều phần tử, thực thi ngay lập tức.
-- Nếu cần xem kết quả sau thao tác (mở menu, chuyển trang, chờ load), chỉ trả về mảng gồm 1 hành động.
+2) BATCH ACTIONS THAT DO NOT NEED A NEW LOOK
+- If the later steps do not need a new screenshot (click a search box -> type -> Enter, or click the address bar -> type -> Enter), return ONE array and run it immediately.
+- If you need to see the result (a menu opened, a page changed, a load), return an array with a single action.
 
-3) ĐẦU RA STRICT JSON ONLY
-- Trả về DUY NHẤT một mảng JSON bắt đầu bằng [ và kết thúc bằng ].
-- KHÔNG hội thoại, KHÔNG giải thích, KHÔNG markdown, KHÔNG phân tích tọa độ thành lời văn, KHÔNG text nào ngoài mảng.
-- TUYỆT ĐỐI KHÔNG tóm tắt màn hình, KHÔNG mô tả những gì bạn đang thấy, KHÔNG bình luận sau mảng JSON. Người dùng CHỈ cần hành động, không cần đọc bạn thấy gì.
-- Trường "reason" của done/finish tối đa 15 từ, ghi ngắn gọn kết quả đã đạt.
+3) STRICT JSON ONLY
+- Return ONLY one JSON array that starts with [ and ends with ].
+- No conversation, no explanation, no markdown, no coordinate essay, no text outside the array.
+- Do NOT summarize the screen or describe what you see. The caller only needs the actions.
+- The "reason" on done/finish is at most 15 words.
 
-ĐỊNH DẠNG HỢP LỆ:
+VALID SHAPES:
 [{"action":"click","x":500,"y":300,"button":"left"}]
 [{"action":"click","x":410,"y":60},{"action":"type","text":"youtube"},{"action":"press","key":"ENTER"}]
-[{"action":"type","text":"nội dung cần gõ"}]
+[{"action":"type","text":"text to type"}]
 [{"action":"press","key":"ENTER"}]
 [{"action":"hold","key":"W","ms":2000}]
 [{"action":"hotkey","keys":["CTRL","L"]}]
 [{"action":"scroll","direction":"down","amount":3}]
 [{"action":"drag","from":{"x":100,"y":100},"to":{"x":400,"y":300}}]
 [{"action":"wait","ms":1500}]
-[{"action":"done","reason":"đã hoàn thành mục tiêu"}]
+[{"action":"done","reason":"goal finished"}]
 
-VÍ DỤ VỀ CỬA SỔ (window actions):
+WINDOW ACTION EXAMPLES:
 [{"action":"window_list"}]
 [{"action":"window_activate","target":"File Explorer"}]
 [{"action":"window_activate","target":"Notepad"}]
@@ -285,14 +274,14 @@ VÍ DỤ VỀ CỬA SỔ (window actions):
 [{"action":"show_desktop"}]
 [{"action":"taskbar_activate","target":"Notepad"}]
 
-"target" nhận được: chuỗi tự do ("File Explorer", "Notepad", "Chrome"),
-tên file ("explorer.exe", "notepad.exe"), hoặc object {hwnd} / {pid} / {process} / {title} / {titleContains}.
-Window actions KHÔNG được gộp cùng click/type/press trong cùng mảng.
+"target" may be a free string ("File Explorer", "Notepad", "Chrome"),
+a file name ("explorer.exe", "notepad.exe"), or an object {hwnd} / {pid} / {process} / {title} / {titleContains}.
+Do not mix window actions with click/type/press in the same array.
 
-Trường "button" chỉ cần khi không phải nút trái (left/right/middle). "double":true khi cần double-click.
-"hold" = giữ phím trong "ms" rồi mới nhả (dùng để di chuyển nhân vật game, giữ W/A/S/D).
-Chưa cần làm gì: [{"action":"wait","ms":1500}]
-Mục tiêu hoàn thành: [{"action":"done","reason":"..."}]`;
+"button" is only needed when it is not left (left/right/middle). "double":true for a double-click.
+"hold" keeps a key down for "ms" and then releases it (move a game character with W/A/S/D).
+Nothing to do yet: [{"action":"wait","ms":1500}]
+Goal complete: [{"action":"done","reason":"..."}]`;
 }
 
 function parseEvents(stdout) {
@@ -306,7 +295,7 @@ function parseEvents(stdout) {
       if (evt.type === 'text' && evt.part?.text) texts.push(evt.part.text);
       if (evt.sessionID) sessionId = evt.sessionID;
     } catch {
-      /* bỏ qua dòng không phải JSON */
+      /* skip lines that are not JSON */
     }
   }
   return { texts, sessionId };
@@ -338,7 +327,7 @@ const KNOWN_ACTIONS = new Set([
   'taskbar_activate'
 ]);
 
-// Các action đổi trạng thái cửa sổ -> sau đó PHẢI quan sát lại screenshot mới
+// Window-state actions. The next step must look at a fresh screenshot.
 export const WINDOW_STATE_ACTIONS = new Set([
   'window_activate',
   'window_restore',
@@ -347,7 +336,7 @@ export const WINDOW_STATE_ACTIONS = new Set([
   'taskbar_activate'
 ]);
 
-// Action sinh input (click/gõ phím) - chỉ được chạy khi cửa sổ đích đã foreground
+// Input actions. They run only when the target window is in the foreground.
 export const INPUT_ACTIONS = new Set(['click', 'move', 'type', 'press', 'hold', 'hotkey', 'scroll', 'drag']);
 
 const MAX_CHAIN = 5;
@@ -412,7 +401,7 @@ export function findActions(text) {
       const actions = validateActions(parseLoose(raw));
       if (actions.length) return actions;
     } catch {
-      /* ứng viên này hỏng, thử tiếp */
+      /* this candidate is invalid, try the next one */
     }
   }
   for (const raw of scanBalanced(text, '{', '}')) {
@@ -420,7 +409,7 @@ export function findActions(text) {
       const actions = validateActions(parseLoose(raw));
       if (actions.length) return actions;
     } catch {
-      /* ứng viên này hỏng, thử tiếp */
+      /* this candidate is invalid, try the next one */
     }
   }
   return null;
@@ -459,7 +448,7 @@ export async function askModel({ goal, step, img, history, sessionId = null, tit
     config.continueSession &&
     /session|not found|invalid/i.test(result.stderr || '')
   ) {
-    console.log(`    Session ${sessionId} không tiếp tục được, tạo session mới...`);
+    console.log(`    Session ${sessionId} cannot be continued, starting a new one...`);
     result = await run(makeArgs(null));
   }
 
@@ -469,7 +458,7 @@ export async function askModel({ goal, step, img, history, sessionId = null, tit
 
   if (result.exitCode !== 0 && !text) {
     const err = (result.stderr || result.stdout || '').trim().slice(-500);
-    throw new Error(`Lệnh vision lỗi (exit ${result.exitCode}): ${err || 'không có output'}`);
+    throw new Error(`Vision command failed (exit ${result.exitCode}): ${err || 'no output'}`);
   }
 
   const action = findActions(text) || [{ action: 'wait', ms: 2000, _parseFailed: true }];
@@ -482,5 +471,5 @@ export async function ask(opts) {
     return askOpenai(opts);
   }
   if (config.provider === 'opencode') return askModel(opts);
-  throw new Error(`provider không hỗ trợ: ${config.provider}`);
+  throw new Error(`Unsupported provider: ${config.provider}`);
 }
